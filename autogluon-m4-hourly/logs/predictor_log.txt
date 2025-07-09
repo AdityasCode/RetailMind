@@ -1,0 +1,228 @@
+Beginning AutoGluon training... Time limit = 600s
+AutoGluon will save models to '/Users/adityagandhi/Development/RetailMind/autogluon-m4-hourly'
+=================== System Info ===================
+AutoGluon Version:  1.3.1
+Python Version:     3.11.0
+Operating System:   Darwin
+Platform Machine:   arm64
+Platform Version:   Darwin Kernel Version 24.4.0: Wed Mar 19 21:18:03 PDT 2025; root:xnu-11417.101.15~1/RELEASE_ARM64_T8112
+CPU Count:          8
+GPU Count:          0
+Memory Avail:       1.37 GB / 8.00 GB (17.1%)
+Disk Space Avail:   12.81 GB / 228.27 GB (5.6%)
+===================================================
+Setting presets to: medium_quality
+
+Fitting with arguments:
+{'enable_ensemble': True,
+ 'eval_metric': MASE,
+ 'hyperparameters': 'light',
+ 'known_covariates_names': [],
+ 'num_val_windows': 1,
+ 'prediction_length': 48,
+ 'quantile_levels': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+ 'random_seed': 123,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'Weekly_Sales',
+ 'time_limit': 600,
+ 'verbosity': 2}
+
+Warning: path already exists! This predictor may overwrite an existing predictor! path="autogluon-m4-hourly"
+Beginning AutoGluon training... Time limit = 600s
+Beginning AutoGluon training... Time limit = 600s
+AutoGluon will save models to '/Users/adityagandhi/Development/RetailMind/autogluon-m4-hourly'
+AutoGluon will save models to '/Users/adityagandhi/Development/RetailMind/autogluon-m4-hourly'
+=================== System Info ===================
+AutoGluon Version:  1.3.1
+Python Version:     3.11.0
+Operating System:   Darwin
+Platform Machine:   arm64
+Platform Version:   Darwin Kernel Version 24.4.0: Wed Mar 19 21:18:03 PDT 2025; root:xnu-11417.101.15~1/RELEASE_ARM64_T8112
+CPU Count:          8
+GPU Count:          0
+Memory Avail:       1.46 GB / 8.00 GB (18.2%)
+Disk Space Avail:   13.01 GB / 228.27 GB (5.7%)
+===================================================
+=================== System Info ===================
+AutoGluon Version:  1.3.1
+Python Version:     3.11.0
+Operating System:   Darwin
+Platform Machine:   arm64
+Platform Version:   Darwin Kernel Version 24.4.0: Wed Mar 19 21:18:03 PDT 2025; root:xnu-11417.101.15~1/RELEASE_ARM64_T8112
+CPU Count:          8
+GPU Count:          0
+Memory Avail:       1.46 GB / 8.00 GB (18.2%)
+Disk Space Avail:   13.01 GB / 228.27 GB (5.7%)
+===================================================
+Setting presets to: medium_quality
+Setting presets to: medium_quality
+
+Fitting with arguments:
+
+Fitting with arguments:
+{'enable_ensemble': True,
+ 'eval_metric': MASE,
+ 'freq': 'W-FRI',
+ 'hyperparameters': 'light',
+ 'known_covariates_names': [],
+ 'num_val_windows': 1,
+ 'prediction_length': 48,
+ 'quantile_levels': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+ 'random_seed': 123,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'Weekly_Sales',
+ 'time_limit': 600,
+ 'verbosity': 2}
+
+{'enable_ensemble': True,
+ 'eval_metric': MASE,
+ 'freq': 'W-FRI',
+ 'hyperparameters': 'light',
+ 'known_covariates_names': [],
+ 'num_val_windows': 1,
+ 'prediction_length': 48,
+ 'quantile_levels': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+ 'random_seed': 123,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'Weekly_Sales',
+ 'time_limit': 600,
+ 'verbosity': 2}
+
+train_data with frequency 'IRREG' has been resampled to frequency 'W-FRI'.
+train_data with frequency 'IRREG' has been resampled to frequency 'W-FRI'.
+Provided train_data has 6435 rows, 45 time series. Median time series length is 143 (min=143, max=143). 
+Provided train_data has 6435 rows, 45 time series. Median time series length is 143 (min=143, max=143). 
+
+Provided data contains following columns:
+
+Provided data contains following columns:
+	target: 'Weekly_Sales'
+	target: 'Weekly_Sales'
+	past_covariates:
+	past_covariates:
+		categorical:        []
+		categorical:        []
+		continuous (float): ['Dept', 'IsHoliday']
+		continuous (float): ['Dept', 'IsHoliday']
+
+To learn how to fix incorrectly inferred types, please see documentation for TimeSeriesPredictor.fit
+
+To learn how to fix incorrectly inferred types, please see documentation for TimeSeriesPredictor.fit
+
+AutoGluon will gauge predictive performance using evaluation metric: 'MASE'
+
+AutoGluon will gauge predictive performance using evaluation metric: 'MASE'
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+===================================================
+===================================================
+
+Starting training. Start time is 2025-06-25 00:06:11
+
+Starting training. Start time is 2025-06-25 00:06:11
+Models that will be trained: ['Naive', 'SeasonalNaive', 'RecursiveTabular', 'DirectTabular', 'ETS', 'Theta', 'Chronos[bolt_small]', 'TemporalFusionTransformer']
+Models that will be trained: ['Naive', 'SeasonalNaive', 'RecursiveTabular', 'DirectTabular', 'ETS', 'Theta', 'Chronos[bolt_small]', 'TemporalFusionTransformer']
+Training timeseries model Naive. Training for up to 66.4s of the 598.0s of remaining time.
+Training timeseries model Naive. Training for up to 66.4s of the 598.0s of remaining time.
+	-4.4266       = Validation score (-MASE)
+	-4.4266       = Validation score (-MASE)
+	0.02    s     = Training runtime
+	0.02    s     = Training runtime
+	1.98    s     = Validation (prediction) runtime
+	1.98    s     = Validation (prediction) runtime
+Training timeseries model SeasonalNaive. Training for up to 74.5s of the 596.0s of remaining time.
+Training timeseries model SeasonalNaive. Training for up to 74.5s of the 596.0s of remaining time.
+	-4.4266       = Validation score (-MASE)
+	-4.4266       = Validation score (-MASE)
+	0.02    s     = Training runtime
+	0.02    s     = Training runtime
+	0.04    s     = Validation (prediction) runtime
+	0.04    s     = Validation (prediction) runtime
+Training timeseries model RecursiveTabular. Training for up to 85.1s of the 595.9s of remaining time.
+Training timeseries model RecursiveTabular. Training for up to 85.1s of the 595.9s of remaining time.
+	-6.2203       = Validation score (-MASE)
+	-6.2203       = Validation score (-MASE)
+	1.05    s     = Training runtime
+	1.05    s     = Training runtime
+	0.14    s     = Validation (prediction) runtime
+	0.14    s     = Validation (prediction) runtime
+Training timeseries model DirectTabular. Training for up to 99.1s of the 594.7s of remaining time.
+Training timeseries model DirectTabular. Training for up to 99.1s of the 594.7s of remaining time.
+	-1.1798       = Validation score (-MASE)
+	-1.1798       = Validation score (-MASE)
+	1.11    s     = Training runtime
+	1.11    s     = Training runtime
+	0.04    s     = Validation (prediction) runtime
+	0.04    s     = Validation (prediction) runtime
+Training timeseries model ETS. Training for up to 118.7s of the 593.6s of remaining time.
+Training timeseries model ETS. Training for up to 118.7s of the 593.6s of remaining time.
+	-3.0791       = Validation score (-MASE)
+	-3.0791       = Validation score (-MASE)
+	0.01    s     = Training runtime
+	0.01    s     = Training runtime
+	2.54    s     = Validation (prediction) runtime
+	2.54    s     = Validation (prediction) runtime
+Training timeseries model Theta. Training for up to 147.8s of the 591.0s of remaining time.
+Training timeseries model Theta. Training for up to 147.8s of the 591.0s of remaining time.
+	-1.8904       = Validation score (-MASE)
+	-1.8904       = Validation score (-MASE)
+	0.01    s     = Training runtime
+	0.01    s     = Training runtime
+	0.11    s     = Validation (prediction) runtime
+	0.11    s     = Validation (prediction) runtime
+Training timeseries model Chronos[bolt_small]. Training for up to 197.0s of the 590.9s of remaining time.
+Training timeseries model Chronos[bolt_small]. Training for up to 197.0s of the 590.9s of remaining time.
+	Warning: Exception caused Chronos[bolt_small] to fail during training... Skipping this model.
+	Warning: Exception caused Chronos[bolt_small] to fail during training... Skipping this model.
+	There was a specific connection error when trying to load autogluon/chronos-bolt-small:
+401 Client Error: Unauthorized for url: https://huggingface.co/autogluon/chronos-bolt-small/resolve/main/config.json (Request ID: Root=1-685af027-03d31b52429cfd0c4590102d;b6edcb77-639d-4c88-a6ea-03ad3d5692d6)
+
+Invalid credentials in Authorization header
+	There was a specific connection error when trying to load autogluon/chronos-bolt-small:
+401 Client Error: Unauthorized for url: https://huggingface.co/autogluon/chronos-bolt-small/resolve/main/config.json (Request ID: Root=1-685af027-03d31b52429cfd0c4590102d;b6edcb77-639d-4c88-a6ea-03ad3d5692d6)
+
+Invalid credentials in Authorization header
+Training timeseries model TemporalFusionTransformer. Training for up to 293.4s of the 586.9s of remaining time.
+Training timeseries model TemporalFusionTransformer. Training for up to 293.4s of the 586.9s of remaining time.
+	-1.0383       = Validation score (-MASE)
+	-1.0383       = Validation score (-MASE)
+	121.30  s     = Training runtime
+	121.30  s     = Training runtime
+	0.07    s     = Validation (prediction) runtime
+	0.07    s     = Validation (prediction) runtime
+Fitting simple weighted ensemble.
+Fitting simple weighted ensemble.
+	Ensemble weights: {'DirectTabular': 0.16, 'TemporalFusionTransformer': 0.7, 'Theta': 0.14}
+	Ensemble weights: {'DirectTabular': 0.16, 'TemporalFusionTransformer': 0.7, 'Theta': 0.14}
+	-0.9064       = Validation score (-MASE)
+	-0.9064       = Validation score (-MASE)
+	0.23    s     = Training runtime
+	0.23    s     = Training runtime
+	0.22    s     = Validation (prediction) runtime
+	0.22    s     = Validation (prediction) runtime
+Training complete. Models trained: ['Naive', 'SeasonalNaive', 'RecursiveTabular', 'DirectTabular', 'ETS', 'Theta', 'TemporalFusionTransformer', 'WeightedEnsemble']
+Training complete. Models trained: ['Naive', 'SeasonalNaive', 'RecursiveTabular', 'DirectTabular', 'ETS', 'Theta', 'TemporalFusionTransformer', 'WeightedEnsemble']
+Total runtime: 133.57 s
+Total runtime: 133.57 s
+Best model: WeightedEnsemble
+Best model: WeightedEnsemble
+Best model score: -0.9064
+Best model score: -0.9064
+data with frequency 'IRREG' has been resampled to frequency 'W-FRI'.
+data with frequency 'IRREG' has been resampled to frequency 'W-FRI'.
+Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
+Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
+data with frequency 'IRREG' has been resampled to frequency 'W-FRI'.
+data with frequency 'IRREG' has been resampled to frequency 'W-FRI'.
+data with frequency 'IRREG' has been resampled to frequency 'W-FRI'.
+data with frequency 'IRREG' has been resampled to frequency 'W-FRI'.
+Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
+Model not specified in predict, will default to the model with the best validation score: WeightedEnsemble
+data with frequency 'IRREG' has been resampled to frequency 'W-FRI'.
+data with frequency 'IRREG' has been resampled to frequency 'W-FRI'.

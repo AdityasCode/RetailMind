@@ -1,0 +1,142 @@
+2025-06-24 23:11:03,368:WARNING:/Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/pydevd_plugins/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  __import__('pkg_resources').declare_namespace(__name__)
+
+2025-06-24 23:30:10,394:WARNING:
+'prophet' is a soft dependency and not included in the pycaret installation. Please run: `pip install prophet` to install.
+2025-06-24 23:30:10,550:WARNING:/Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/pydevd_plugins/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  __import__('pkg_resources').declare_namespace(__name__)
+
+2025-06-24 23:33:37,972:WARNING:
+'prophet' is a soft dependency and not included in the pycaret installation. Please run: `pip install prophet` to install.
+2025-06-24 23:38:48,666:WARNING:
+'prophet' is a soft dependency and not included in the pycaret installation. Please run: `pip install prophet` to install.
+2025-06-24 23:38:49,404:WARNING:/Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/pydevd_plugins/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  __import__('pkg_resources').declare_namespace(__name__)
+
+2025-06-24 23:38:49,475:INFO:PyCaret TSForecastingExperiment
+2025-06-24 23:38:49,475:INFO:Logging name: ts-default-name
+2025-06-24 23:38:49,475:INFO:ML Usecase: MLUsecase.TIME_SERIES
+2025-06-24 23:38:49,475:INFO:version 3.3.2
+2025-06-24 23:38:49,475:INFO:Initializing setup()
+2025-06-24 23:38:49,475:INFO:self.USI: 0c3c
+2025-06-24 23:38:49,475:INFO:self._variable_keys: {'html_param', 'y_train_transformed', 'fold_generator', 'USI', 'logging_param', 'data', 'log_plots_param', 'y_transformed', 'y', 'seasonality_present', 'gpu_n_jobs_param', 'index_type', 'X', 'strictly_positive', 'candidate_sps', 'fold_param', 'y_test_transformed', 'idx', 'y_train', '_available_plots', 'pipeline', 'X_transformed', '_ml_usecase', 'n_jobs_param', 'X_train', 'model_engines', 'y_test', 'X_train_transformed', 'fh', 'significant_sps', 'approach_type', 'seed', 'memory', 'primary_sp_to_use', 'all_sps_to_use', 'enforce_exogenous', 'exp_name_log', 'gpu_param', 'enforce_pi', 'significant_sps_no_harmonics', 'exogenous_present', 'X_test', 'X_test_transformed', 'exp_id'}
+2025-06-24 23:38:49,475:INFO:Checking environment
+2025-06-24 23:38:49,475:INFO:python_version: 3.11.0
+2025-06-24 23:38:49,475:INFO:python_build: ('v3.11.0:deaf509e8f', 'Oct 24 2022 14:43:23')
+2025-06-24 23:38:49,475:INFO:machine: arm64
+2025-06-24 23:38:49,475:INFO:platform: macOS-15.4-arm64-arm-64bit
+2025-06-24 23:38:49,475:INFO:Memory: svmem(total=8589934592, available=1311195136, percent=84.7, used=2963275776, free=62898176, active=1259585536, inactive=1156218880, wired=1703690240)
+2025-06-24 23:38:49,475:INFO:Physical Core: 8
+2025-06-24 23:38:49,475:INFO:Logical Core: 8
+2025-06-24 23:38:49,475:INFO:Checking libraries
+2025-06-24 23:38:49,475:INFO:System:
+2025-06-24 23:38:49,475:INFO:    python: 3.11.0 (v3.11.0:deaf509e8f, Oct 24 2022, 14:43:23) [Clang 13.0.0 (clang-1300.0.29.30)]
+2025-06-24 23:38:49,475:INFO:executable: /Users/adityagandhi/Development/RetailMind/venv/bin/python
+2025-06-24 23:38:49,475:INFO:   machine: macOS-15.4-arm64-arm-64bit
+2025-06-24 23:38:49,475:INFO:PyCaret required dependencies:
+2025-06-24 23:39:16,095:INFO:PyCaret TSForecastingExperiment
+2025-06-24 23:39:16,095:INFO:Logging name: ts-default-name
+2025-06-24 23:39:16,095:INFO:ML Usecase: MLUsecase.TIME_SERIES
+2025-06-24 23:39:16,095:INFO:version 3.3.2
+2025-06-24 23:39:16,095:INFO:Initializing setup()
+2025-06-24 23:39:16,095:INFO:self.USI: a3ca
+2025-06-24 23:39:16,095:INFO:self._variable_keys: {'html_param', 'y_train_transformed', 'fold_generator', 'USI', 'logging_param', 'data', 'log_plots_param', 'y_transformed', 'y', 'seasonality_present', 'gpu_n_jobs_param', 'index_type', 'X', 'strictly_positive', 'candidate_sps', 'fold_param', 'y_test_transformed', 'idx', 'y_train', '_available_plots', 'pipeline', 'X_transformed', '_ml_usecase', 'n_jobs_param', 'X_train', 'model_engines', 'y_test', 'X_train_transformed', 'fh', 'significant_sps', 'approach_type', 'seed', 'memory', 'primary_sp_to_use', 'all_sps_to_use', 'enforce_exogenous', 'exp_name_log', 'gpu_param', 'enforce_pi', 'significant_sps_no_harmonics', 'exogenous_present', 'X_test', 'X_test_transformed', 'exp_id'}
+2025-06-24 23:39:16,095:INFO:Checking environment
+2025-06-24 23:39:16,095:INFO:python_version: 3.11.0
+2025-06-24 23:39:16,095:INFO:python_build: ('v3.11.0:deaf509e8f', 'Oct 24 2022 14:43:23')
+2025-06-24 23:39:16,095:INFO:machine: arm64
+2025-06-24 23:39:16,095:INFO:platform: macOS-15.4-arm64-arm-64bit
+2025-06-24 23:39:16,096:INFO:Memory: svmem(total=8589934592, available=1574191104, percent=81.7, used=3228352512, free=65912832, active=1519206400, inactive=1461288960, wired=1709146112)
+2025-06-24 23:39:16,096:INFO:Physical Core: 8
+2025-06-24 23:39:16,096:INFO:Logical Core: 8
+2025-06-24 23:39:16,096:INFO:Checking libraries
+2025-06-24 23:39:16,096:INFO:System:
+2025-06-24 23:39:16,096:INFO:    python: 3.11.0 (v3.11.0:deaf509e8f, Oct 24 2022, 14:43:23) [Clang 13.0.0 (clang-1300.0.29.30)]
+2025-06-24 23:39:16,096:INFO:executable: /Users/adityagandhi/Development/RetailMind/venv/bin/python
+2025-06-24 23:39:16,096:INFO:   machine: macOS-15.4-arm64-arm-64bit
+2025-06-24 23:39:16,096:INFO:PyCaret required dependencies:
+2025-06-24 23:41:14,119:WARNING:
+'prophet' is a soft dependency and not included in the pycaret installation. Please run: `pip install prophet` to install.
+2025-06-24 23:41:14,849:WARNING:/Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/pydevd_plugins/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  __import__('pkg_resources').declare_namespace(__name__)
+
+2025-06-24 23:41:14,898:INFO:PyCaret TSForecastingExperiment
+2025-06-24 23:41:14,898:INFO:Logging name: ts-default-name
+2025-06-24 23:41:14,898:INFO:ML Usecase: MLUsecase.TIME_SERIES
+2025-06-24 23:41:14,898:INFO:version 3.3.2
+2025-06-24 23:41:14,898:INFO:Initializing setup()
+2025-06-24 23:41:14,898:INFO:self.USI: d07c
+2025-06-24 23:41:14,898:INFO:self._variable_keys: {'significant_sps_no_harmonics', 'enforce_exogenous', 'model_engines', 'exp_id', 'logging_param', 'y_train_transformed', 'fh', 'X', 'all_sps_to_use', 'pipeline', 'y_transformed', 'memory', 'gpu_n_jobs_param', 'gpu_param', 'seed', 'exogenous_present', 'X_transformed', 'significant_sps', 'log_plots_param', 'exp_name_log', 'X_train_transformed', 'X_test_transformed', 'y', 'data', 'USI', '_ml_usecase', 'X_test', '_available_plots', 'fold_param', 'fold_generator', 'X_train', 'strictly_positive', 'index_type', 'seasonality_present', 'approach_type', 'y_test', 'candidate_sps', 'enforce_pi', 'n_jobs_param', 'y_train', 'idx', 'primary_sp_to_use', 'html_param', 'y_test_transformed'}
+2025-06-24 23:41:14,898:INFO:Checking environment
+2025-06-24 23:41:14,898:INFO:python_version: 3.11.0
+2025-06-24 23:41:14,898:INFO:python_build: ('v3.11.0:deaf509e8f', 'Oct 24 2022 14:43:23')
+2025-06-24 23:41:14,898:INFO:machine: arm64
+2025-06-24 23:41:14,898:INFO:platform: macOS-15.4-arm64-arm-64bit
+2025-06-24 23:41:14,898:INFO:Memory: svmem(total=8589934592, available=1667284992, percent=80.6, used=3342106624, free=65568768, active=1613021184, inactive=1490370560, wired=1729085440)
+2025-06-24 23:41:14,898:INFO:Physical Core: 8
+2025-06-24 23:41:14,898:INFO:Logical Core: 8
+2025-06-24 23:41:14,898:INFO:Checking libraries
+2025-06-24 23:41:14,898:INFO:System:
+2025-06-24 23:41:14,898:INFO:    python: 3.11.0 (v3.11.0:deaf509e8f, Oct 24 2022, 14:43:23) [Clang 13.0.0 (clang-1300.0.29.30)]
+2025-06-24 23:41:14,898:INFO:executable: /Users/adityagandhi/Development/RetailMind/venv/bin/python
+2025-06-24 23:41:14,898:INFO:   machine: macOS-15.4-arm64-arm-64bit
+2025-06-24 23:41:14,898:INFO:PyCaret required dependencies:
+2025-06-24 23:46:35,994:WARNING:
+'prophet' is a soft dependency and not included in the pycaret installation. Please run: `pip install prophet` to install.
+2025-06-24 23:46:37,492:WARNING:/Applications/PyCharm.app/Contents/plugins/python-ce/helpers/pydev/pydevd_plugins/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  __import__('pkg_resources').declare_namespace(__name__)
+
+2025-06-24 23:47:27,206:INFO:PyCaret TSForecastingExperiment
+2025-06-24 23:47:27,207:INFO:Logging name: ts-default-name
+2025-06-24 23:47:27,207:INFO:ML Usecase: MLUsecase.TIME_SERIES
+2025-06-24 23:47:27,207:INFO:version 3.3.2
+2025-06-24 23:47:27,207:INFO:Initializing setup()
+2025-06-24 23:47:27,207:INFO:self.USI: 5133
+2025-06-24 23:47:27,207:INFO:self._variable_keys: {'index_type', 'exogenous_present', 'X_test', 'significant_sps_no_harmonics', 'n_jobs_param', 'X_train_transformed', 'y_test', 'logging_param', 'idx', 'log_plots_param', 'candidate_sps', 'X_transformed', 'enforce_pi', 'significant_sps', 'y_train_transformed', 'data', 'seed', 'gpu_param', 'exp_name_log', 'X', 'pipeline', 'seasonality_present', '_ml_usecase', 'X_train', 'model_engines', 'fold_param', 'all_sps_to_use', 'strictly_positive', 'memory', 'fh', 'exp_id', 'gpu_n_jobs_param', 'X_test_transformed', 'y_transformed', 'approach_type', 'y_train', 'y_test_transformed', 'y', '_available_plots', 'fold_generator', 'enforce_exogenous', 'primary_sp_to_use', 'USI', 'html_param'}
+2025-06-24 23:47:27,207:INFO:Checking environment
+2025-06-24 23:47:27,207:INFO:python_version: 3.11.0
+2025-06-24 23:47:27,208:INFO:python_build: ('v3.11.0:deaf509e8f', 'Oct 24 2022 14:43:23')
+2025-06-24 23:47:27,208:INFO:machine: arm64
+2025-06-24 23:47:27,208:INFO:platform: macOS-15.4-arm64-arm-64bit
+2025-06-24 23:47:27,209:INFO:Memory: svmem(total=8589934592, available=1299087360, percent=84.9, used=3001417728, free=59424768, active=1255342080, inactive=1122533376, wired=1746075648)
+2025-06-24 23:47:27,209:INFO:Physical Core: 8
+2025-06-24 23:47:27,209:INFO:Logical Core: 8
+2025-06-24 23:47:27,209:INFO:Checking libraries
+2025-06-24 23:47:27,209:INFO:System:
+2025-06-24 23:47:27,209:INFO:    python: 3.11.0 (v3.11.0:deaf509e8f, Oct 24 2022, 14:43:23) [Clang 13.0.0 (clang-1300.0.29.30)]
+2025-06-24 23:47:27,209:INFO:executable: /Users/adityagandhi/Development/RetailMind/venv/bin/python
+2025-06-24 23:47:27,209:INFO:   machine: macOS-15.4-arm64-arm-64bit
+2025-06-24 23:47:27,209:INFO:PyCaret required dependencies:
+2025-06-24 23:49:58,234:INFO:PyCaret TSForecastingExperiment
+2025-06-24 23:49:58,234:INFO:Logging name: ts-default-name
+2025-06-24 23:49:58,234:INFO:ML Usecase: MLUsecase.TIME_SERIES
+2025-06-24 23:49:58,234:INFO:version 3.3.2
+2025-06-24 23:49:58,234:INFO:Initializing setup()
+2025-06-24 23:49:58,234:INFO:self.USI: 60f0
+2025-06-24 23:49:58,234:INFO:self._variable_keys: {'index_type', 'exogenous_present', 'X_test', 'significant_sps_no_harmonics', 'n_jobs_param', 'X_train_transformed', 'y_test', 'logging_param', 'idx', 'log_plots_param', 'candidate_sps', 'X_transformed', 'enforce_pi', 'significant_sps', 'y_train_transformed', 'data', 'seed', 'gpu_param', 'exp_name_log', 'X', 'pipeline', 'seasonality_present', '_ml_usecase', 'X_train', 'model_engines', 'fold_param', 'all_sps_to_use', 'strictly_positive', 'memory', 'fh', 'exp_id', 'gpu_n_jobs_param', 'X_test_transformed', 'y_transformed', 'approach_type', 'y_train', 'y_test_transformed', 'y', '_available_plots', 'fold_generator', 'enforce_exogenous', 'primary_sp_to_use', 'USI', 'html_param'}
+2025-06-24 23:49:58,234:INFO:Checking environment
+2025-06-24 23:49:58,234:INFO:python_version: 3.11.0
+2025-06-24 23:49:58,234:INFO:python_build: ('v3.11.0:deaf509e8f', 'Oct 24 2022 14:43:23')
+2025-06-24 23:49:58,234:INFO:machine: arm64
+2025-06-24 23:49:58,234:INFO:platform: macOS-15.4-arm64-arm-64bit
+2025-06-24 23:49:58,235:INFO:Memory: svmem(total=8589934592, available=1424424960, percent=83.4, used=3109732352, free=60080128, active=1371062272, inactive=1281572864, wired=1738670080)
+2025-06-24 23:49:58,235:INFO:Physical Core: 8
+2025-06-24 23:49:58,235:INFO:Logical Core: 8
+2025-06-24 23:49:58,235:INFO:Checking libraries
+2025-06-24 23:49:58,235:INFO:System:
+2025-06-24 23:49:58,235:INFO:    python: 3.11.0 (v3.11.0:deaf509e8f, Oct 24 2022, 14:43:23) [Clang 13.0.0 (clang-1300.0.29.30)]
+2025-06-24 23:49:58,235:INFO:executable: /Users/adityagandhi/Development/RetailMind/venv/bin/python
+2025-06-24 23:49:58,235:INFO:   machine: macOS-15.4-arm64-arm-64bit
+2025-06-24 23:49:58,235:INFO:PyCaret required dependencies:
+2025-06-25 01:07:01,143:WARNING:/Users/adityagandhi/Development/RetailMind/venv/lib/python3.11/site-packages/kaleido/__init__.py:14: UserWarning:
+
+
+
+Warning: You have Plotly version 5.24.1, which is not compatible with this version of Kaleido (1.0.0).
+
+This means that static image generation (e.g. `fig.write_image()`) will not work.
+
+Please upgrade Plotly to version 6.1.1 or greater, or downgrade Kaleido to version 0.2.1.
+
+
+
