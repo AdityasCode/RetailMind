@@ -3,6 +3,8 @@ from typing import Tuple, Optional, Dict, List
 import pandas as pd
 from utils import stderr_print
 
+pd.set_option('display.max_columns', None)
+
 department_names = [
     "Electronics", "Home Goods", "Apparel", "Groceries", "Pharmacy", "Automotive",
     "Sporting Goods", "Toys", "Garden Center", "Jewelry", "Books & Media", "Health & Beauty",
@@ -67,7 +69,7 @@ def add_all_data(sales_df: pd.DataFrame, csv_path: str) -> pd.DataFrame:
     return final_df
 
 def parse_sales_csv(
-        train_csv_path: str, features_csv_path: str = 'test_data/features.csv', chunksize: int = 50000
+        train_csv_path: str, features_csv_path: str = './test_data/features.csv', chunksize: int = 50000
 ) -> Tuple[pd.DataFrame, Optional[pd.DataFrame]]:
     """
     read data from csv in chunks, add to the df
@@ -91,8 +93,10 @@ def parse_sales_csv(
     spec_df = add_all_data(general_df, features_csv_path)
     return general_df, spec_df
 
-gen_df, specialized_df = (parse_sales_csv("../test_data/train.csv"))
+gen_df, specialized_df = (parse_sales_csv("./test_data/train.csv"))
 # print(gen_df)
 # print(specialized_df)
+stderr_print("Gen df:")
 stderr_print(gen_df)
+stderr_print("Spec df:")
 stderr_print(specialized_df)

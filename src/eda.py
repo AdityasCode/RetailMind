@@ -3,8 +3,77 @@ import pandas as pd
 import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+
 from crud import parse_sales_csv, get_department_name
 from utils import stderr_print
+
+def __get_propensity_score(spec_df: pd.DataFrame) -> str:
+    """
+    Creating a propensity score for measuring externa; factors against performance. Here, forecasting is avoided since
+    it'll be hard to predict external factors of the market with only these paremeters. However, this may serve towards
+    1. Comparing with weekly sales to examine responses to external factors
+    2. Is the budget flexible enough to react to changes?
+    :param spec_df: DF with date, CPI, unemployment, fuel_price and temperature, arranged weekly
+    :return: None
+    """
+
+    # For simplicity, summing over a specific stores
+
+    spec_df['Date'] = pd.to_datetime(spec_df['Date'])
+    spec_df.sort_values('Date', inplace=True)
+    spec_df = spec_df.set_index('Date')
+
+    # ideal temperature in Celsius. We measure the distance from this.
+    # Since we want all factors to be proportional for growth, we invert this score.
+
+    IDEAL_TEMPERATURE: int = 21
+    FEATURES = ['Temperature', 'CPI', 'Unemployment', 'Fuel_Price']
+    spec_df['Temperature'] = -1 * abs(IDEAL_TEMPERATURE - spec_df['Temperature'])
+    sc = StandardScaler()
+    spec_df_features = spec_df[FEATURES]
+
+    # Creating standardized Z-Scores for features
+
+    print(spec_df.head())
+    spec_df_scaled = pd.DataFrame(sc.fit_transform(spec_df_features), columns=FEATURES, index=spec_df.index)
+    sc.fit(spec_df_features)
+
+    # Using PCA to find the optimal weights
+
+    pca = PCA(n_components=1)
+    pca.fit(spec_df_scaled)
+    weights = pca.components_[0]
+
+    # Creating an index value
+
+    unemployment_weight = pd.Series(weights, index=FEATURES)['Unemployment']
+    if unemployment_weight > 0:
+        weights = -weights
+    spec_df['headwinds_index'] = spec_df_scaled.dot(weights)
+
+    # Scale the index
+
+    # min_val = spec_df['headwinds_index'].min()
+    # max_val = spec_df['headwinds_index'].max()
+    # spec_df['headwinds_index_scaled'] = 100 * (spec_df['headwinds_index'] - min_val) / (max_val - min_val)
+    # stderr_print(spec_df[['headwinds_index_scaled'] + FEATURES])
+
+    # Visual
+
+    plt.style.use('seaborn-v0_8-whitegrid')
+    fig, ax = plt.subplots(figsize=(14, 7))
+
+    ax.plot(spec_df.index, spec_df['headwinds_index'], label='Retail Headwinds Index', color='b', lw=2)
+    ax.set_title('Weekly Retail Headwinds Index (2-Year Period)', fontsize=16)
+    ax.set_xlabel('Date', fontsize=12)
+    ax.set_ylabel('Index Score (Higher = More Favorable)', fontsize=12)
+    ax.legend()
+    ax.grid(True)
+    plt.show()
+    return ""
+
 
 def generate_graphs(gen_df: pd.DataFrame, spec_df: pd.DataFrame, isPred: int = 0, storeID: List[int] = None) -> str:
     stderr_print("generating eda")
@@ -21,6 +90,8 @@ def generate_graphs(gen_df: pd.DataFrame, spec_df: pd.DataFrame, isPred: int = 0
             stderr_print("no valid stores in range [1,45]")
     else:
         stderr_print("all stores")
+    # spec_df = spec_df.groupby(['Store']).sum()
+    result += __get_propensity_score(spec_df)
     result += __sales_t(gen_df)
     if (not isPred): result += __holiday_impact(gen_df)
     if (storeID == -1): result += __top_performers(gen_df)
@@ -172,5 +243,6 @@ def __department_analysis(spec_df: pd.DataFrame, isHoliday: int = 0, top_n: int 
     )
     return summary
 
-general_df, specialized_df = (parse_sales_csv("../test_data/train.csv"))
-print(generate_graphs(general_df, storeID=[15,17,21,23,25], spec_df=specialized_df))
+general_df, specialized_df = (parse_sales_csv("./test_data/train.csv"))
+print(generate_graphs(general_df, storeID=[1], spec_df=specialized_df))
+# __get_propensity_score(specialized_df)
