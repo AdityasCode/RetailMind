@@ -69,13 +69,15 @@ def add_all_data(sales_df: pd.DataFrame, csv_path: str) -> pd.DataFrame:
     return final_df
 
 def parse_sales_csv(
-        train_csv_path: str, features_csv_path: str = './test_data/features.csv', chunksize: int = 50000
+        train_csv_path: str, features_csv_path: str = './test_data/features.csv', chunksize: int = 50000,
+        storeID: List[int] = [1]
 ) -> Tuple[pd.DataFrame, Optional[pd.DataFrame]]:
     """
     read data from csv in chunks, add to the df
     :param train_csv_path: path of csv file w data
     :param features_csv_path: path of csv file w features
     :param chunksize: size of chunk to read from csv
+    :param storeID: id of stores to include
     :return:
     """
     reader = pd.read_csv(train_csv_path, chunksize=chunksize, iterator=True, encoding='unicode_escape')
@@ -91,6 +93,16 @@ def parse_sales_csv(
         chunks.append(chunk)
     general_df = pd.concat(chunks, ignore_index=True)
     spec_df = add_all_data(general_df, features_csv_path)
+    if storeID:
+        valid_stores = [s for s in storeID if 1 <= s <= 45]
+        if valid_stores:
+            stderr_print(f"for stores {valid_stores}")
+            general_df = general_df[general_df['Store'].isin(valid_stores)]
+            spec_df = spec_df[spec_df['Store'].isin(valid_stores)]
+        else:
+            stderr_print("no valid stores in range [1,45]")
+    else:
+        stderr_print("all stores")
     return general_df, spec_df
 
 gen_df, specialized_df = (parse_sales_csv("./test_data/train.csv"))
