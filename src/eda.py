@@ -239,11 +239,11 @@ class EDAFeatures:
         :param top_n: number of top performing departments to analyze
         :return: textual summary of departments
         """
-        spec_df = self.spec_df
-        print(f"\n\n\n{spec_df.head()}\n\n\n")
-        spec_df['Dept'] = spec_df['Dept'].apply(get_department_name)
+        gen_df = self.get_gen_df()
+        print(f"\n\n\n{gen_df.head()}\n\n\n")
+        gen_df['Dept'] = gen_df['Dept'].apply(get_department_name)
         #spec_df = spec_df[spec_df['IsHoliday'] == True]
-        sales_by_dept = spec_df.groupby('Dept', as_index=False)['Weekly_Sales'].sum()
+        sales_by_dept = gen_df.groupby('Dept', as_index=False)['Weekly_Sales'].sum()
         sales_by_dept = sales_by_dept.sort_values(by='Weekly_Sales', ascending=False)
 
         if (not os.path.exists("./charts/department.png")):
@@ -273,11 +273,11 @@ class EDAFeatures:
         :param top_n: number of top performing departments to analyze
         :return: textual summary of top departments
         """
-        spec_df = self.spec_df
-        print(f"\n\n\n{spec_df.head()}\n\n\n")
-        spec_df['Dept'] = spec_df['Dept'].apply(get_department_name)
-        spec_df = spec_df[spec_df['IsHoliday'] == True]
-        sales_by_dept = spec_df.groupby('Dept', as_index=False)['Weekly_Sales'].sum()
+        gen_df = self.get_gen_df()
+        print(f"\n\n\nDept Analysis Holiday:\n{gen_df.head()}\n\n\n")
+        gen_df['Dept'] = gen_df['Dept'].apply(get_department_name)
+        gen_df = gen_df[gen_df['IsHoliday'] == True]
+        sales_by_dept = gen_df.groupby('Dept', as_index=False)['Weekly_Sales'].sum()
         sales_by_dept = sales_by_dept.sort_values(by='Weekly_Sales', ascending=False)
 
         if (not os.path.exists("./charts/department_holiday.png")):

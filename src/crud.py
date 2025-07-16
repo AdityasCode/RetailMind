@@ -155,10 +155,10 @@ def get_total_sales_for_stores_for_dates(gen_df: pd.DataFrame, storeIDs: List[in
     """
     return gen_df.drop_duplicates('Store')['Weekly_Sales'].sum()
 
-gen_df, specialized_df = (parse_sales_csv("./test_data/train.csv"))
-# print(gen_df)
-# print(specialized_df)
-stderr_print("Gen df:")
-stderr_print(gen_df)
-stderr_print("Spec df:")
-stderr_print(specialized_df)
+# gen_df, specialized_df = (parse_sales_csv("./test_data/train.csv"))
+# # print(gen_df)
+# # print(specialized_df)
+# stderr_print("Gen df:")
+# stderr_print(gen_df)
+# stderr_print("Spec df:")
+# stderr_print(specialized_df)
