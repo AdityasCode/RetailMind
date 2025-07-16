@@ -2,10 +2,7 @@ from datetime import timedelta
 from typing import Tuple, Optional, Dict, List
 import pandas as pd
 from utils import stderr_print
-from langchain_openai import ChatOpenAI
-from langchain.agents import AgentExecutor, create_tool_calling_agent
-from langchain_core.tools import tool
-from langchain import hub
+from langchain_core.tools import StructuredTool
 
 pd.set_option('display.max_columns', None)
 
@@ -69,91 +66,120 @@ def _week_start(first_dt: pd.Timestamp, dt: pd.Timestamp) -> pd.Timestamp:
     week_number = days_since_start // 7
     return first_dt + timedelta(days=week_number * 7)
 
-def add_all_data(sales_df: pd.DataFrame, csv_path: str) -> pd.DataFrame:
-    """
-    reads entire data and merges it with a given dataframe. only matching dates are included.
-    @:param sales_df: sales dataframe
-    @:return gen_df, containing store, dept, date, w_sales & isHoliday;
-    spec_df containing store, date, w_sales, temp, fuel_price, cpi, unemployment
-    """
-    features_df = pd.read_csv(csv_path, usecols=['Store', 'Date', 'Temperature', 'Fuel_Price', 'CPI', 'Unemployment'])
-    sales_df['Date'] = pd.to_datetime(sales_df['Date'])
-    features_df['Date'] = pd.to_datetime(features_df['Date'])
-    merged_df = pd.merge(sales_df, features_df, on=['Store', 'Date'], how='inner')
-    final_df = merged_df[['Store', 'Date', 'Weekly_Sales', 'Temperature', 'Fuel_Price', 'CPI', 'Unemployment']]
-    return final_df
+class CRUD:
+    def __init__(self, sales_path: str = "./test_data/train.csv", features_path: str = "./test_data/features.csv",
+                 storeIDs: List[int] = [1]):
+        self.gen_df: pd.DataFrame = pd.DataFrame()
+        self.spec_df: pd.DataFrame = pd.DataFrame()
+        self.add_sales_data(sales_path)
+        self.add_external_factors(features_path)
+        self.storeIDs: List[int] = storeIDs
 
-def parse_sales_csv(
-        train_csv_path: str, features_csv_path: str = './test_data/features.csv', chunksize: int = 50000,
-        storeID: List[int] = [1]
-) -> Tuple[pd.DataFrame, Optional[pd.DataFrame]]:
-    """
-    read data from csv in chunks, add to the df
-    :param train_csv_path: path of csv file w data
-    :param features_csv_path: path of csv file w features
-    :param chunksize: size of chunk to read from csv
-    :param storeID: id of stores to include
-    :return:
-    """
-    reader = pd.read_csv(train_csv_path, chunksize=chunksize, iterator=True, encoding='unicode_escape')
-    chunks = []
-    weekly_sales_agg: Dict[int, List[float]] = {}
-    for i in range(1, 46): weekly_sales_agg[i] = []
-    for chunk in reader:
-        store_id, sales_col = 'Store', 'Weekly_Sales'
-        chunk[store_id] = pd.to_numeric(chunk[store_id])
-        chunk[sales_col] = pd.to_numeric(chunk[sales_col])
-        for store, sales in zip(chunk[store_id], chunk[sales_col]):
-            weekly_sales_agg[store].append(sales)
-        chunks.append(chunk)
-    general_df = pd.concat(chunks, ignore_index=True)
-    spec_df = add_all_data(general_df, features_csv_path)
-    if storeID:
-        valid_stores = [s for s in storeID if 1 <= s <= 45]
-        if valid_stores:
-            stderr_print(f"for stores {valid_stores}")
-            general_df = general_df[general_df['Store'].isin(valid_stores)]
-            spec_df = spec_df[spec_df['Store'].isin(valid_stores)]
-        else:
-            stderr_print("no valid stores in range [1,45]")
-    else:
-        stderr_print("all stores")
-    return general_df, spec_df
+        self.sales_by_year_tool = StructuredTool.from_function(
+            func=self.get_total_sales_for_stores_for_years,
+            name="get_sales_for_years",
+            description="Calculates the sum of all sales for the given years for the given stores."
+        )
+        self.sales_by_month_tool = StructuredTool.from_function(
+            func=self.get_total_sales_for_stores_for_months,
+            name="get_sales_for_months",
+            description="Calculates the sum of all sales for the given months for the given stores."
+        )
+        self.sales_by_date_tool = StructuredTool.from_function(
+            func=self.get_total_sales_for_stores_for_dates,
+            name="get_sales_for_dates",
+            description="Calculates the sum of all sales for the given dates for the given stores."
+        )
 
 
-@tool
-def get_total_sales_for_stores_for_years(gen_df: pd.DataFrame, storeIDs: List[int] = [1], years: List[int] = [2010]) -> int:
-    """
-    Calculates the sum of all sales for the given years for the given stores
-    :param gen_df: DataFrame to sum with
-    :param storeIDs: List of store IDs to sum for, defaults to [1]
-    :param years: List of years to sum for, defaults to [2010]
-    :return: sales as int
-    """
-    gen_df = gen_df.drop_duplicates('Store')['Weekly_Sales']
-    
+    def add_external_factors(self, csv_path: str) -> None:
+        """
+        reads entire data and merges it with a given dataframe. only matching dates are included.
+        :param sales_df: sales dataframe
+        :return None
+        """
+        stderr_print("adding external factors")
+        sales_df = self.gen_df
+        stderr_print(sales_df)
+        features_df = pd.read_csv(csv_path, usecols=['Store', 'Date', 'Temperature', 'Fuel_Price', 'CPI', 'Unemployment'])
+        sales_df['Date'] = pd.to_datetime(sales_df['Date'])
+        features_df['Date'] = pd.to_datetime(features_df['Date'])
+        merged_df = pd.merge(sales_df, features_df, on=['Store', 'Date'], how='inner')
+        final_df = merged_df[['Store', 'Date', 'Weekly_Sales', 'Temperature', 'Fuel_Price', 'CPI', 'Unemployment']]
+        self.spec_df = final_df
 
-@tool
-def get_total_sales_for_stores_for_months(gen_df: pd.DataFrame, storeIDs: List[int] = [1], years: List[int] = [2010]) -> int:
-    """
-    Calculates the sum of all sales for the given years for the given stores
-    :param gen_df: DataFrame to sum with
-    :param storeIDs: List of store IDs to sum for, defaults to [1]
-    :param years: List of years to sum for, defaults to [2010]
-    :return: sales as int
-    """
-    return gen_df.drop_duplicates('Store')['Weekly_Sales'].sum()
+    def add_sales_data(self, train_csv_path: str, chunksize: int = 50000) -> None:
+        """
+        read data from csv in chunks, add to the df
+        :param train_csv_path: path of csv file w data
+        :param features_csv_path: path of csv file w features
+        :param chunksize: size of chunk to read from csv
+        :param storeID: id of stores to include
+        :return: None
+        """
+        stderr_print("adding sales data")
+        reader = pd.read_csv(train_csv_path, chunksize=chunksize, iterator=True, encoding='unicode_escape')
+        chunks = []
+        weekly_sales_agg: Dict[int, List[float]] = {}
+        for i in range(1, 46): weekly_sales_agg[i] = []
+        for chunk in reader:
+            store_id, sales_col = 'Store', 'Weekly_Sales'
+            chunk[store_id] = pd.to_numeric(chunk[store_id])
+            chunk[sales_col] = pd.to_numeric(chunk[sales_col])
+            for store, sales in zip(chunk[store_id], chunk[sales_col]):
+                weekly_sales_agg[store].append(sales)
+            chunks.append(chunk)
+        general_df = pd.concat(chunks, ignore_index=True)
+        self.gen_df = general_df
 
-@tool
-def get_total_sales_for_stores_for_dates(gen_df: pd.DataFrame, storeIDs: List[int] = [1], years: List[int] = [2010]) -> int:
-    """
-    Calculates the sum of all sales for the given years for the given stores
-    :param gen_df: DataFrame to sum with
-    :param storeIDs: List of store IDs to sum for, defaults to [1]
-    :param years: List of years to sum for, defaults to [2010]
-    :return: sales as int
-    """
-    return gen_df.drop_duplicates('Store')['Weekly_Sales'].sum()
+    def parse_sales_data(self,
+                       storeID: List[int] = [1]
+                       ) -> Tuple[pd.DataFrame, Optional[pd.DataFrame]]:
+        """
+        Returns both gen and spec dataframes
+        :param storeID: list of store IDs to include || -1
+        :return: gen_df, containing store, dept, date, w_sales & isHoliday;
+        spec_df containing store, date, w_sales, temp, fuel_price, cpi, unemployment
+        """
+        return filter_stores(self.gen_df, storeID), filter_stores(self.get_spec_df(), storeID)
+
+
+    def get_total_sales_for_stores_for_years(self, storeIDs: Optional[List[int]] = None, years: Optional[List[int]] = None) -> int:
+        if storeIDs is None:
+            storeIDs = self.storeIDs
+        if years is None:
+            years = [2010]
+
+        filtered_df = self.gen_df[
+            (self.gen_df['Store'].isin(storeIDs)) &
+            (self.gen_df['Date'].dt.year.isin(years))
+            ]
+        return int(filtered_df['Weekly_Sales'].sum())
+
+    def get_total_sales_for_stores_for_months(self, storeIDs: Optional[List[int]] = None, months: Optional[List[int]] = None) -> int:
+        if storeIDs is None:
+            storeIDs = self.storeIDs
+        if months is None:
+            months = [2] # Defaults to February
+
+        filtered_df = self.gen_df[
+            (self.gen_df['Store'].isin(storeIDs)) &
+            (self.gen_df['Date'].dt.month.isin(months))
+            ]
+        return int(filtered_df['Weekly_Sales'].sum())
+
+    def get_total_sales_for_stores_for_dates(self, storeIDs: Optional[List[int]] = None, dates: Optional[List[str]] = None) -> int:
+        if storeIDs is None:
+            storeIDs = self.storeIDs
+        if dates is None:
+            dates = ["2010-02-05"]
+
+        target_dates = pd.to_datetime(dates)
+        filtered_df = self.gen_df[
+            (self.gen_df['Store'].isin(storeIDs)) &
+            (self.gen_df['Date'].isin(target_dates))
+            ]
+        return int(filtered_df['Weekly_Sales'].sum())
 
 # gen_df, specialized_df = (parse_sales_csv("./test_data/train.csv"))
 # # print(gen_df)
@@ -162,3 +188,6 @@ def get_total_sales_for_stores_for_dates(gen_df: pd.DataFrame, storeIDs: List[in
 # stderr_print(gen_df)
 # stderr_print("Spec df:")
 # stderr_print(specialized_df)
+crudder = CRUD()
+stderr_print(crudder.gen_df)
+stderr_print(crudder.spec_df)
