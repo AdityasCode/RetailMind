@@ -2,6 +2,10 @@ from datetime import timedelta
 from typing import Tuple, Optional, Dict, List
 import pandas as pd
 from utils import stderr_print
+from langchain_openai import ChatOpenAI
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.tools import tool
+from langchain import hub
 
 pd.set_option('display.max_columns', None)
 
@@ -25,6 +29,17 @@ department_names = [
     "Reptile Supp.", "Small Anim. Supp.", "Hunting Lic.", "Fishing Lic.", "Career Services",
     "Eye Clinic", "Soda"
 ]
+
+def filter_stores(df: pd.DataFrame, storeID: List[int]) -> pd.DataFrame:
+    if storeID:
+        valid_stores = [s for s in storeID if 1 <= s <= 45]
+        if valid_stores:
+            df = df[df['Store'].isin(valid_stores)]
+        else:
+            stderr_print("no valid stores in range [1,45]")
+    else:
+        stderr_print("all stores")
+    return df
 
 def get_department_name(dept_id) -> str:
     """
@@ -104,6 +119,41 @@ def parse_sales_csv(
     else:
         stderr_print("all stores")
     return general_df, spec_df
+
+
+@tool
+def get_total_sales_for_stores_for_years(gen_df: pd.DataFrame, storeIDs: List[int] = [1], years: List[int] = [2010]) -> int:
+    """
+    Calculates the sum of all sales for the given years for the given stores
+    :param gen_df: DataFrame to sum with
+    :param storeIDs: List of store IDs to sum for, defaults to [1]
+    :param years: List of years to sum for, defaults to [2010]
+    :return: sales as int
+    """
+    gen_df = gen_df.drop_duplicates('Store')['Weekly_Sales']
+    
+
+@tool
+def get_total_sales_for_stores_for_months(gen_df: pd.DataFrame, storeIDs: List[int] = [1], years: List[int] = [2010]) -> int:
+    """
+    Calculates the sum of all sales for the given years for the given stores
+    :param gen_df: DataFrame to sum with
+    :param storeIDs: List of store IDs to sum for, defaults to [1]
+    :param years: List of years to sum for, defaults to [2010]
+    :return: sales as int
+    """
+    return gen_df.drop_duplicates('Store')['Weekly_Sales'].sum()
+
+@tool
+def get_total_sales_for_stores_for_dates(gen_df: pd.DataFrame, storeIDs: List[int] = [1], years: List[int] = [2010]) -> int:
+    """
+    Calculates the sum of all sales for the given years for the given stores
+    :param gen_df: DataFrame to sum with
+    :param storeIDs: List of store IDs to sum for, defaults to [1]
+    :param years: List of years to sum for, defaults to [2010]
+    :return: sales as int
+    """
+    return gen_df.drop_duplicates('Store')['Weekly_Sales'].sum()
 
 gen_df, specialized_df = (parse_sales_csv("./test_data/train.csv"))
 # print(gen_df)
