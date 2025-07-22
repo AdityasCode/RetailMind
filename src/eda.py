@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from langchain_core.tools import StructuredTool
 
-from crud import parse_sales_csv, get_department_name, filter_stores
+from crud import get_department_name, filter_stores, CRUD
 from utils import stderr_print
 
 
@@ -57,6 +57,9 @@ class EDAFeatures:
             description="Analyzes the impact of economic factors like CPI and unemployment on sales."
         )
 
+    # def check_exists(self, path: str) -> int:
+    #     os.chdir("src")
+        
     def get_gen_df(self) -> pd.DataFrame: return self.gen_df
     def get_spec_df(self) -> pd.DataFrame: return self.spec_df
     def set_gen_df(self, gen_df: pd.DataFrame) -> None: self.gen_df = gen_df
@@ -241,7 +244,7 @@ class EDAFeatures:
         """
         gen_df = self.get_gen_df()
         print(f"\n\n\n{gen_df.head()}\n\n\n")
-        gen_df['Dept'] = gen_df['Dept'].apply(get_department_name)
+        gen_df.loc[:, 'Dept'] = gen_df['Dept'].apply(get_department_name)
         #spec_df = spec_df[spec_df['IsHoliday'] == True]
         sales_by_dept = gen_df.groupby('Dept', as_index=False)['Weekly_Sales'].sum()
         sales_by_dept = sales_by_dept.sort_values(by='Weekly_Sales', ascending=False)
@@ -441,7 +444,7 @@ class EDAFeatures:
 
         return " ".join(summary)
 
-general_df, specialized_df = (parse_sales_csv("./test_data/train.csv", storeID=[1]))
-EDAFeatures = EDAFeatures(general_df, specialized_df)
-print(EDAFeatures.generate_graphs(storeID=[1]))
-# get_propensity_score(specialized_df)
+# crudder = CRUD()
+# print(os.getcwd())
+# EDAFeatures = EDAFeatures(crudder.gen_df, crudder.spec_df)
+# print(EDAFeatures.generate_graphs(storeID=[1]))

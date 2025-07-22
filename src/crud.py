@@ -181,13 +181,6 @@ class CRUD:
             ]
         return int(filtered_df['Weekly_Sales'].sum())
 
-# gen_df, specialized_df = (parse_sales_csv("./test_data/train.csv"))
-# # print(gen_df)
-# # print(specialized_df)
-# stderr_print("Gen df:")
-# stderr_print(gen_df)
-# stderr_print("Spec df:")
-# stderr_print(specialized_df)
-crudder = CRUD()
-stderr_print(crudder.gen_df)
-stderr_print(crudder.spec_df)
+# crudder = CRUD()
+# stderr_print(crudder.gen_df)
+# stderr_print(crudder.spec_df)
