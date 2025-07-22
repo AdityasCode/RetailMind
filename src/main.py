@@ -88,3 +88,13 @@ if __name__ == "__main__":
     import uvicorn
     print("Server is running.")
     uvicorn.run(app, host="0.0.0.0", port=8080)
+# import os
+# print("Dir:")
+# print(os.getcwd())
+# os.chdir("..")
+# import crud
+# from src.utils import stderr_print
+#
+# crudder = crud.CRUD()
+# stderr_print(crudder.gen_df)
+# stderr_print(crudder.spec_df)
