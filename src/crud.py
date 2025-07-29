@@ -1,7 +1,9 @@
+import datetime
+import os
 from datetime import timedelta
 from typing import Tuple, Optional, Dict, List
 import pandas as pd
-from utils import stderr_print
+from src.utils import stderr_print
 from langchain_core.tools import StructuredTool
 
 pd.set_option('display.max_columns', None)
@@ -180,6 +182,31 @@ class CRUD:
             (self.gen_df['Date'].isin(target_dates))
             ]
         return int(filtered_df['Weekly_Sales'].sum())
+
+class WeekCRUD(CRUD):
+    def __init__(self, sales_path: str = "./test_data/train_daily_1.csv"):
+        self.documents: List = []
+        self.path: str = sales_path
+        self.daily_df: pd.DataFrame = self.parse_daily_data()
+
+    def parse_daily_data(self, path: str = None, chunksize: int = 50000) -> pd.DataFrame:
+        stderr_print("adding daily sales data")
+        if not path: path = self.path
+        stderr_print(f"cwd here: {os.getcwd()}")
+        reader = pd.read_csv(path, chunksize=chunksize, iterator=True, encoding='unicode_escape')
+        chunks = []
+        daily_sales_agg: Dict[int, List[float]] = {}
+        for i in range(1, 46): daily_sales_agg[i] = []
+        for chunk in reader:
+            store_id, sales_col = 'Store', 'Daily_Sales'
+            chunk[store_id] = pd.to_numeric(chunk[store_id])
+            chunk[sales_col] = pd.to_numeric(chunk[sales_col])
+            for store, sales in zip(chunk[store_id], chunk[sales_col]):
+                daily_sales_agg[store].append(sales)
+            chunks.append(chunk)
+        general_df = pd.concat(chunks, ignore_index=True)
+        return general_df
+
 
 # crudder = CRUD()
 # stderr_print(crudder.gen_df)
