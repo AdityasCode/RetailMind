@@ -1,5 +1,7 @@
 #%%
 import os
+from typing import List, Tuple
+
 from langchain import hub
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain_openai import ChatOpenAI
@@ -8,8 +10,7 @@ from dotenv import load_dotenv
 
 from src.crud import CRUD
 from src.eda import EDAFeatures
-from utils import stderr_print
-#%%
+from src.utils import print_stderr
 
 class ChatBot:
     def __init__(self, past_know: str, pred_know: str):
@@ -28,7 +29,7 @@ class ChatBot:
         past_know = self.past_know
         pred_know = self.pred_know
         client = self.client
-        stderr_print(f"Past know: {past_know}\nPred know: {pred_know}\nQuestion: {question}")
+        print_stderr(f"Past know: {past_know}\nPred know: {pred_know}\nQuestion: {question}")
         prompt = f"""
 You are 'RetailMind,' an expert AI business consultant. Your goal is to provide concise, data-driven analysis and strategic advice to retail decision-makers.
 
@@ -87,6 +88,7 @@ class RetailAgent:
             temperature=0.7,
             api_key=os.getenv("OPENAI_API_KEY")
         )
+        self.history: List[Tuple[str, str]] = []
 
         self.tools = [
             crud_obj.sales_by_year_tool,
@@ -98,11 +100,27 @@ class RetailAgent:
             eda_obj.department_analysis_holiday_tool,
             eda_obj.department_analysis_no_holiday_tool,
             eda_obj.analyze_economic_headwinds_tool,
+            eda_obj.analyze_event_impact_tool
         ]
 
         prompt = hub.pull("hwchase17/openai-tools-agent")
+        enhanced_instructions = """
+IMPORTANT ERROR HANDLING INSTRUCTIONS:
+- If any tool returns -1, this means the required data is not loaded or available
+- When you encounter a -1 return value:
+  1. Use the check_data_status tool to see what data is available
+  2. If daily data is needed but not loaded, use initialize_daily_data tool
+  3. Inform the user about the data loading step you're taking
+  4. Retry the original operation after loading the required data
+- Always check data availability before performing complex analyses
+- If data cannot be loaded, clearly explain to the user what data is missing and what they need to provide
+        """
+        prompt.messages[0].prompt.template += enhanced_instructions
         agent = create_tool_calling_agent(self.llm, self.tools, prompt)
         self.executor = AgentExecutor(agent=agent, tools=self.tools, verbose=True)
+
+    def add_to_history(self, qna: Tuple[str, str]) -> None:
+        self.history.append((qna[0], qna[1]))
 
     def ask(self, question: str) -> str:
         """
@@ -110,25 +128,33 @@ class RetailAgent:
         :param question (str): The user's question in natural language.
         :return: answer
         """
+        minContextMessages: int = min(5, len(self.history))
+        question_formatted: str = f"""
+Current question: {question}\n
+History of last {minContextMessages} QnAs for context, with the most recent QnAs at the end:\n
+        """
+        for i in range(minContextMessages):
+            question_formatted += self.history[len(self.history) - minContextMessages + i][0] + self.history[len(self.history) - i - 1][1]
         response = self.executor.invoke({"input": question})
+        self.add_to_history((question, response['output']))
         return response['output']
 
 #%%
-print(os.getcwd())
-crud_manager = CRUD()
-eda_analyzer = EDAFeatures(gen_df=crud_manager.gen_df, spec_df=crud_manager.spec_df)
-#%%
-retail_chatbot = RetailAgent(crud_obj=crud_manager, eda_obj=eda_analyzer)
-#%%
-
-question1 = "What were the total sales for store 2 in 2011?"
-answer1 = retail_chatbot.ask(question1)
-print(f"\nAnswer: {answer1}")
-#%%
-question2 = "Show me an analysis of the top 3 performing stores."
-answer2 = retail_chatbot.ask(question2)
-print(f"\nAnswer: {answer2}")
-#%%
-question3 = "Tell me everything you can about this data, including stores, holiday performance, top performers, retail headwinds, etc."
-answer3 = retail_chatbot.ask(question3)
-print(f"\nAnswer: {answer3}")
+# print(os.getcwd())
+# crud_manager = CRUD()
+# eda_analyzer = EDAFeatures(gen_df=crud_manager.gen_df, spec_df=crud_manager.spec_df)
+# #%%
+# retail_chatbot = RetailAgent(crud_obj=crud_manager, eda_obj=eda_analyzer)
+# #%%
+#
+# question1 = "What were the total sales for store 2 in 2011?"
+# answer1 = retail_chatbot.ask(question1)
+# print(f"\nAnswer: {answer1}")
+# #%%
+# question2 = "Show me an analysis of the top 3 performing stores."
+# answer2 = retail_chatbot.ask(question2)
+# print(f"\nAnswer: {answer2}")
+# #%%
+# question3 = "Tell me everything you can about this data, including stores, holiday performance, top performers, retail headwinds, etc."
+# answer3 = retail_chatbot.ask(question3)
+# print(f"\nAnswer: {answer3}")
