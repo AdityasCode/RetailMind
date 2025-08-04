@@ -1,81 +1,22 @@
-import datetime
+import json
 import os
-from datetime import timedelta
-from typing import Tuple, Optional, Dict, List
+from typing import Optional, Dict, List, Any
 import pandas as pd
-from src.utils import stderr_print
+from scipy.spatial.distance import cosine
+from sentence_transformers import SentenceTransformer
+from src.utils import print_stderr, sales_attribute, filter_stores, default_storeIDs
 from langchain_core.tools import StructuredTool
-
 pd.set_option('display.max_columns', None)
-
-department_names = [
-    "Electronics", "Home Goods", "Apparel", "Groceries", "Pharmacy", "Automotive",
-    "Sporting Goods", "Toys", "Garden Center", "Jewelry", "Books & Media", "Health & Beauty",
-    "Pets", "Hardware", "Crafts", "Party Supplies", "Stationery", "Seasonal",
-    "Bakery", "Deli", "Produce", "Meat & Seafood", "Dairy & Frozen", "Snacks & Drinks",
-    "Baby Products", "Personal Care", "Household Ess.", "Cleaning Supplies", "Paper Goods",
-    "Floral", "Footwear", "Luggage", "Outdoor Living", "Camping Gear", "Fishing Gear",
-    "Hunting Gear", "Fitness Equip.", "Team Sports", "Video Games", "Movies & TV",
-    "Music", "Computers", "Cell Phones", "Tablets", "Wearable Tech", "TVs",
-    "Audio Equip.", "Cameras", "Office Furn.", "School Supplies", "Art Supplies",
-    "Fabric", "Sewing Notions", "Yarn & Needlework", "Scrapbooking", "Gift Cards",
-    "Gift Wrap", "Balloons", "Greeting Cards", "Candles", "Home Decor", "Kitchenware",
-    "Bedding", "Bath", "Storage Org.", "Lighting", "Small App.", "Large App.",
-    "Tires", "Auto Parts", "Motor Oil", "Car Care", "Tools", "Power Tools",
-    "Hand Tools", "Hardware Acc.", "Plumbing", "Electrical", "Paint", "Flooring",
-    "Building Mats.", "Lawn Care", "Pest Control", "Pool & Spa", "Patio Furn.",
-    "Grills", "Bird Food", "Pet Food", "Pet Toys", "Pet Beds", "Fish & Aquatics",
-    "Reptile Supp.", "Small Anim. Supp.", "Hunting Lic.", "Fishing Lic.", "Career Services",
-    "Eye Clinic", "Soda"
-]
-
-def filter_stores(df: pd.DataFrame, storeID: List[int]) -> pd.DataFrame:
-    if storeID:
-        valid_stores = [s for s in storeID if 1 <= s <= 45]
-        if valid_stores:
-            df = df[df['Store'].isin(valid_stores)]
-        else:
-            stderr_print("no valid stores in range [1,45]")
-    else:
-        stderr_print("all stores")
-    return df
-
-def get_department_name(dept_id) -> str:
-    """
-    gets a department name from the list, error handling for invalid IDs.
-    :param dept_id: id of the department, as-is
-    :return: dept name
-    """
-    if (type(dept_id) == str): return dept_id
-    if pd.isna(dept_id):
-        return 'Unknown Dept'
-    index = int(dept_id) - 1
-
-    if 0 <= index < len(department_names):
-        return str(department_names[index])
-    else:
-        return 'Invalid Dept'
-
-def _week_start(first_dt: pd.Timestamp, dt: pd.Timestamp) -> pd.Timestamp:
-    """
-    calculate start date of the week of a given date
-    the first week begins at the earliest date
-    :param first_dt: first date in the entire dataset.
-    :param dt: date to find the corresponding week start for.
-    :return: The timestamp representing the start of the week.
-    """
-    days_since_start = (dt - first_dt).days
-    week_number = days_since_start // 7
-    return first_dt + timedelta(days=week_number * 7)
-
 class CRUD:
     def __init__(self, sales_path: str = "./test_data/train.csv", features_path: str = "./test_data/features.csv",
-                 storeIDs: List[int] = [1]):
+                 daily_path: str = "./test_data/train_daily_1.csv", storeIDs: List[int] = default_storeIDs):
         self.gen_df: pd.DataFrame = pd.DataFrame()
         self.spec_df: pd.DataFrame = pd.DataFrame()
+        self.daily_df: pd.DataFrame = pd.DataFrame()
+        self.storeIDs: List[int] = storeIDs
         self.add_sales_data(sales_path)
         self.add_external_factors(features_path)
-        self.storeIDs: List[int] = storeIDs
+        self.add_daily_data(daily_path)
 
         self.sales_by_year_tool = StructuredTool.from_function(
             func=self.get_total_sales_for_stores_for_years,
@@ -100,15 +41,15 @@ class CRUD:
         :param sales_df: sales dataframe
         :return None
         """
-        stderr_print("adding external factors")
+        print_stderr("adding external factors")
         sales_df = self.gen_df
-        stderr_print(sales_df)
+        print_stderr(sales_df)
         features_df = pd.read_csv(csv_path, usecols=['Store', 'Date', 'Temperature', 'Fuel_Price', 'CPI', 'Unemployment'])
         sales_df['Date'] = pd.to_datetime(sales_df['Date'])
         features_df['Date'] = pd.to_datetime(features_df['Date'])
         merged_df = pd.merge(sales_df, features_df, on=['Store', 'Date'], how='inner')
         final_df = merged_df[['Store', 'Date', 'Weekly_Sales', 'Temperature', 'Fuel_Price', 'CPI', 'Unemployment']]
-        self.spec_df = final_df
+        self.spec_df = filter_stores(final_df, self.storeIDs)
 
     def add_sales_data(self, train_csv_path: str, chunksize: int = 50000) -> None:
         """
@@ -119,7 +60,7 @@ class CRUD:
         :param storeID: id of stores to include
         :return: None
         """
-        stderr_print("adding sales data")
+        print_stderr("adding sales data")
         reader = pd.read_csv(train_csv_path, chunksize=chunksize, iterator=True, encoding='unicode_escape')
         chunks = []
         weekly_sales_agg: Dict[int, List[float]] = {}
@@ -132,21 +73,10 @@ class CRUD:
                 weekly_sales_agg[store].append(sales)
             chunks.append(chunk)
         general_df = pd.concat(chunks, ignore_index=True)
-        self.gen_df = general_df
-
-    def parse_sales_data(self,
-                       storeID: List[int] = [1]
-                       ) -> Tuple[pd.DataFrame, Optional[pd.DataFrame]]:
-        """
-        Returns both gen and spec dataframes
-        :param storeID: list of store IDs to include || -1
-        :return: gen_df, containing store, dept, date, w_sales & isHoliday;
-        spec_df containing store, date, w_sales, temp, fuel_price, cpi, unemployment
-        """
-        return filter_stores(self.gen_df, storeID), filter_stores(self.get_spec_df(), storeID)
-
+        self.gen_df = filter_stores(general_df, self.storeIDs)
 
     def get_total_sales_for_stores_for_years(self, storeIDs: Optional[List[int]] = None, years: Optional[List[int]] = None) -> int:
+        if self.gen_df.empty: return -1
         if storeIDs is None:
             storeIDs = self.storeIDs
         if years is None:
@@ -159,6 +89,7 @@ class CRUD:
         return int(filtered_df['Weekly_Sales'].sum())
 
     def get_total_sales_for_stores_for_months(self, storeIDs: Optional[List[int]] = None, months: Optional[List[int]] = None) -> int:
+        if self.gen_df.empty: return -1
         if storeIDs is None:
             storeIDs = self.storeIDs
         if months is None:
@@ -170,29 +101,30 @@ class CRUD:
             ]
         return int(filtered_df['Weekly_Sales'].sum())
 
-    def get_total_sales_for_stores_for_dates(self, storeIDs: Optional[List[int]] = None, dates: Optional[List[str]] = None) -> int:
+    def get_total_sales_for_stores_for_dates(self, storeIDs: Optional[List[int]] = None, dates: Optional[List[str]] = None, isDaily: bool = False) -> int:
+        if self.gen_df.empty: return -1
+        attrUse, colUse = sales_attribute(isDaily=isDaily)
         if storeIDs is None:
             storeIDs = self.storeIDs
-        if dates is None:
-            dates = ["2010-02-05"]
-
+        defaultDateSet = [pd.to_datetime("2010-02-05")]
         target_dates = pd.to_datetime(dates)
-        filtered_df = self.gen_df[
-            (self.gen_df['Store'].isin(storeIDs)) &
-            (self.gen_df['Date'].isin(target_dates))
+        if target_dates is None or len(target_dates) == 0:
+            target_dates = defaultDateSet
+        targetDf: pd.DataFrame = self.daily_df if isDaily else self.gen_df
+        filtered_df = targetDf[
+            (targetDf['Store'].isin(storeIDs)) &
+            (targetDf['Date'].isin(target_dates))
             ]
-        return int(filtered_df['Weekly_Sales'].sum())
+        if filtered_df.empty:
+            filtered_df = targetDf[
+                (targetDf['Store'].isin(storeIDs)) &
+                (targetDf['Date'].isin(defaultDateSet))
+                ]
+        return int(filtered_df[colUse].sum())
 
-class WeekCRUD(CRUD):
-    def __init__(self, sales_path: str = "./test_data/train_daily_1.csv"):
-        self.documents: List = []
-        self.path: str = sales_path
-        self.daily_df: pd.DataFrame = self.parse_daily_data()
-
-    def parse_daily_data(self, path: str = None, chunksize: int = 50000) -> pd.DataFrame:
-        stderr_print("adding daily sales data")
-        if not path: path = self.path
-        stderr_print(f"cwd here: {os.getcwd()}")
+    def add_daily_data(self, path: str, chunksize: int = 50000) -> pd.DataFrame:
+        print_stderr("adding daily sales data")
+        print_stderr(f"cwd here: {os.getcwd()}")
         reader = pd.read_csv(path, chunksize=chunksize, iterator=True, encoding='unicode_escape')
         chunks = []
         daily_sales_agg: Dict[int, List[float]] = {}
@@ -205,9 +137,96 @@ class WeekCRUD(CRUD):
                 daily_sales_agg[store].append(sales)
             chunks.append(chunk)
         general_df = pd.concat(chunks, ignore_index=True)
-        return general_df
+        self.daily_df = general_df
 
+class Event:
+    """
+    Object for storing information about a specific event, such as name, description, start and end date.
+    """
+    def __init__(self, name: str, start_date: str, end_date: str, text: str, embedding: List[float] = None):
+        """
+        Initialize Event. Embedding is initialized when added to a Log object.
+        :param name: name of event
+        :param start_date: start date, can be string
+        :param end_date: end date, can be string
+        :param text: text
+        :param embedding: leave unfulfilled or None if initializing event standalone
+        """
+        self.description = name
+        self.start_date = pd.to_datetime(start_date)
+        self.end_date = pd.to_datetime(end_date)
+        self.text = text
+        self.embedding = embedding
 
-# crudder = CRUD()
-# stderr_print(crudder.gen_df)
-# stderr_print(crudder.spec_df)
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Converts the Event object to a JSON-serializable dictionary
+        :return: dict
+        """
+        return {
+            "description": self.description,
+            "start_date": self.start_date.isoformat(),
+            "end_date": self.end_date.isoformat(),
+            "text": self.text,
+            "embedding": self.embedding
+        }
+
+class EventLog:
+    """
+    Manages a collection of Event objects, including loading, saving, and vector searching.
+    """
+    def __init__(self, embedding_model_name: str = 'all-MiniLM-L6-v2'):
+        self.log: List[Event] = []
+        self.model = SentenceTransformer(embedding_model_name)
+
+    def add_event_from_text(self, description: str, start_date: str, end_date: str, event_text: str):
+        """
+        Deprecated
+        """
+        embedding = self.model.encode(event_text).tolist()
+        event = Event(description, start_date, end_date, event_text, embedding)
+        self.log.append(event)
+        print_stderr(f"Event '{description}' added to log.")
+
+    def add_event_from_event(self, event: Event):
+        event.embedding = self.model.encode(event.description).tolist()
+        self.log.append(event)
+        print_stderr(f"Event '{event.description}' added to log.")
+
+    def find_event(self, query: str) -> Event | None:
+        """Finds the most relevant event in the log using vector similarity search."""
+        if not self.log:
+            return None
+
+        query_embedding = self.model.encode(query)
+
+        # Calculate cosine similarity between the query and all event embeddings
+        similarities = [1 - cosine(query_embedding, event.embedding) for event in self.log]
+
+        # Find the index of the most similar event
+        most_similar_index = similarities.index(max(similarities))
+
+        return self.log[most_similar_index]
+
+    def save_log(self, path: str = "./events_log.json"):
+        """Saves the entire event log to a JSON file."""
+        with open(path, 'w') as f:
+            json.dump([event.to_dict() for event in self.log], f, indent=4)
+        print_stderr(f"Event log saved to {path}")
+
+    def load_log(self, path: str = "./events_log.json"):
+        """Loads events from a JSON file."""
+        if not os.path.exists(path):
+            print_stderr("No event log file found.")
+            return
+
+        with open(path, 'r') as f:
+            events_data = json.load(f)
+            self.log = [Event(**data) for data in events_data]
+        print_stderr(f"Event log loaded from {path}")
+
+    def toString(self):
+        t = "Event log:"
+        for event in self.log:
+            t += event.description + "\n"
+        return t
