@@ -6,7 +6,7 @@ import pandas as pd
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from utils import stderr_print
+from utils import print_stderr
 
 app = FastAPI()
 
@@ -20,7 +20,7 @@ class QuestionRequest(BaseModel):
 async def startup_event():
     global past_insights, pred_insights
 
-    stderr_print("Loading data and models...")
+    print_stderr("Loading data and models...")
 
     crudder = CRUD()
     gen_df, spec_df = crudder.gen_df, crudder.spec_df
