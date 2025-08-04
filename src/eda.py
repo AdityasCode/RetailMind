@@ -8,15 +8,17 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from langchain_core.tools import StructuredTool
 
-from crud import get_department_name, filter_stores, CRUD
-from utils import stderr_print
+from src.crud import EventLog
+from src.utils import sales_attribute, filter_stores, get_department_name
+from src.utils import print_stderr
 
 
 class EDAFeatures:
     """
     EDA Features to analyze data.
     """
-    def __init__(self, gen_df: pd.DataFrame, spec_df: pd.DataFrame, isForecasted: int = 0):
+    def __init__(self, gen_df: pd.DataFrame, spec_df: pd.DataFrame, event_log: EventLog,
+                 daily_df: pd.DataFrame = None, isForecasted: int = 0, storeIDs: List[int] = None):
         """
         Initializes the toolkit with dataframes. Gen df and spec df must have the given columns respectively, case-sensitive:
         Store | Dept | Date | Weekly_Sales | IsHoliday
@@ -24,7 +26,23 @@ class EDAFeatures:
         """
         self.gen_df = gen_df
         self.spec_df = spec_df
+        self.daily_df = daily_df
         self.isForecasted = isForecasted
+        self.log = event_log
+        self.storeIDs = storeIDs
+
+        # Filtering gen and spec DFs
+
+        self.set_gen_df(filter_stores(self.get_gen_df(), storeIDs))
+        self.set_spec_df(filter_stores(self.get_spec_df(), storeIDs))
+        self.spec_df['Date'] = pd.to_datetime(self.spec_df['Date'])
+        self.spec_df.sort_values('Date', inplace=True)
+        self.spec_df.drop_duplicates(subset=['Date'], inplace=True)
+        self.spec_df = self.spec_df.set_index('Date')
+        print_stderr("Received from parse_sales_csv, gen & spec, filtered:")
+        gen_df, spec_df = self.gen_df, self.spec_df
+        print_stderr(gen_df)
+        print_stderr(spec_df)
 
         self.sales_t_tool = StructuredTool.from_function(
             func=self.sales_t,
@@ -56,6 +74,11 @@ class EDAFeatures:
             name="economic_headwinds_analyzer",
             description="Analyzes the impact of economic factors like CPI and unemployment on sales."
         )
+        self.analyze_event_impact_tool = StructuredTool.from_function(
+            func=self.analyze_event_impact,
+            name="event_impact_analyzer",
+            description="Analyzes the impact of an event on sales."
+        )
 
     # def check_exists(self, path: str) -> int:
     #     os.chdir("src")
@@ -65,87 +88,77 @@ class EDAFeatures:
     def set_gen_df(self, gen_df: pd.DataFrame) -> None: self.gen_df = gen_df
     def set_spec_df(self, spec_df: pd.DataFrame) -> None: self.spec_df = spec_df
 
-    def generate_graphs(self, storeID: List[int] = None) -> str:
-        stderr_print("generating eda")
+    def generate_graphs(self) -> str:
+        print_stderr("generating eda")
         result: str = ""
-
-        # Filtering gen and spec DFs
-
-        self.set_gen_df(filter_stores(self.get_gen_df(), storeID))
-        self.set_spec_df(filter_stores(self.get_spec_df(), storeID))
-        self.spec_df['Date'] = pd.to_datetime(self.spec_df['Date'])
-        self.spec_df.sort_values('Date', inplace=True)
-        self.spec_df.drop_duplicates(subset=['Date'], inplace=True)
-        self.spec_df = self.spec_df.set_index('Date')
-        stderr_print("Received from parse_sales_csv, gen & spec, filtered:")
-        gen_df, spec_df = self.gen_df, self.spec_df
-        stderr_print(gen_df)
-        stderr_print(spec_df)
 
         # Generating all features
 
         result += self.sales_t_tool.invoke({})
         if not self.isForecasted: result += self.holiday_impact_tool.invoke({})
-        if storeID and len(storeID) > 1: result += self.top_performing_stores_tool.invoke({})
+        if self.storeIDs and len(self.storeIDs) > 1: result += self.top_performing_stores_tool.invoke({})
         if not self.isForecasted:
             result += self.department_analysis_holiday_tool.invoke({})
             result += self.department_analysis_no_holiday_tool.invoke({})
             result += self.analyze_economic_headwinds_tool.invoke({})
-        if storeID: result += f"These statistics are only for Store(s) {storeID}."
+        if self.storeIDs: result += f"These statistics are only for Store(s) {self.storeIDs}."
         return result
 
-    def sales_t(self, tool_input: str = "") -> str:
+    def sales_t(self, tool_input: str = "", isDaily: bool = False) -> str:
         """
         Generates a graph for sales vs. time.
         :param tool_input: Ignored
         :return: textual summary of sales vs. time
         """
-
-        print()
-        stderr_print("generating sales graph")
-        stderr_print(self.get_gen_df())
-        time_series = self.get_gen_df().groupby('Date', as_index=False)['Weekly_Sales'].sum()
+        attrUse, colUse = sales_attribute(isDaily)
+        print_stderr("generating sales graph. gen_df:")
+        print_stderr(self.get_gen_df())
+        targetDf: pd.DataFrame = self.get_gen_df() if not isDaily else self.daily_df
+        time_series = targetDf.groupby('Date', as_index=False)[colUse].sum()
         if (not os.path.exists("./charts/sales.png")):
             isForecasted = self.isForecasted
-            title = "(Forecasted) Total Weekly Sales Over Time" if isForecasted else "Total Weekly Sales Over Time"
+            title = f"(Forecasted) Total {attrUse} Over Time" if isForecasted else f"Total {attrUse} Over Time"
             fig = px.line(
                 time_series,
                 x='Date',
-                y='Weekly_Sales',
+                y=colUse,
                 title=title,
-                labels={'Weekly_Sales': 'Total Weekly Sales ($)'}
+                labels={colUse: f'Total {attrUse} ($)'}
             )
             fig.write_image("./charts/sales.png")
 
-        peak_sales_week = time_series.loc[time_series['Weekly_Sales'].idxmax()]
-        lowest_sales_week = time_series.loc[time_series['Weekly_Sales'].idxmin()]
-        average_sales = time_series['Weekly_Sales'].mean()
+        peak_sales_period = time_series.loc[time_series[colUse].idxmax()]
+        lowest_sales_period = time_series.loc[time_series[colUse].idxmin()]
+        average_sales = time_series[colUse].mean()
 
         summary = (
-            f"Overall sales peaked at ${peak_sales_week['Weekly_Sales']:,.0f} on the week of {peak_sales_week['Date']}. "
-            f"The lowest point was ${lowest_sales_week['Weekly_Sales']:,.0f} on {lowest_sales_week['Date']}. "
-            f"The average weekly sales across the entire period was ${average_sales:,.0f}.\n"
+            f"Overall sales peaked at ${peak_sales_period[colUse]:,.0f} on the week of {peak_sales_period['Date']}. "
+            f"The lowest point was ${lowest_sales_period[colUse]:,.0f} on {lowest_sales_period['Date']}. "
+            f"The average {attrUse} across the entire period was ${average_sales:,.0f}.\n"
         )
         return summary
 
-    def holiday_impact(self, tool_input: str = "") -> str:
+    def holiday_impact(self, tool_input: str = "", isDaily: bool = False) -> str:
         """
         Creates a box plot for the holiday impact on sales.
         :param tool_input: Ignored
         :return: textual summary of the holiday impact
         """
-        stderr_print("generating holiday impact box plot")
+        attrUse, colUse = sales_attribute(isDaily)
+        targetDf: pd.DataFrame = self.get_gen_df() if not isDaily else self.daily_df
+
+        print_stderr("generating holiday impact box plot")
         if (not os.path.exists("./charts/holiday.png")):
             plt.figure(figsize=(8, 6))
-            sns.boxplot(x='IsHoliday', y='Weekly_Sales', data=self.gen_df)
+            sns.boxplot(x='IsHoliday', y=colUse, data=targetDf)
             plt.xlabel("Is Holiday")
-            plt.ylabel("Weekly Sales ($)")
-            plt.title("Distribution of Weekly Sales: Holiday vs Non-Holiday")
+            plt.ylabel(f"{attrUse} ($)")
+            plt.title(f"Distribution of {attrUse}: Holiday vs Non-Holiday")
             plt.grid(True, axis='y')
             plt.savefig("./charts/holiday.png")
 
-        holiday_sales = self.gen_df[self.gen_df['IsHoliday'] == True]['Weekly_Sales'].mean()
-        non_holiday_sales = self.gen_df[self.gen_df['IsHoliday'] == False]['Weekly_Sales'].mean()
+        holiday_sales = targetDf[targetDf['IsHoliday'] == True][colUse].mean()
+        non_holiday_sales = targetDf[targetDf['IsHoliday'] == False][colUse].mean()
         percentage_diff = ((holiday_sales - non_holiday_sales) / non_holiday_sales) * 100
 
         summary = (
@@ -154,7 +167,7 @@ class EDAFeatures:
         )
         return summary
 
-    def top_performing_stores(self, tool_input: str = "", top_n: int = 5) -> str:
+    def top_performing_stores(self, tool_input: str = "", top_n: int = 5, isDaily: bool = False) -> str:
         """
         Analyzes the top performing stores in the given data.
         :param tool_input: Ignored
@@ -162,10 +175,13 @@ class EDAFeatures:
         :param isForecasted: 0 for non forecasted data, 1 for forecasted data.
         :return: textual summary of top performers
         """
-        df = self.gen_df
-        stderr_print("generating top performers bar graph")
-        sales_by_store = df.groupby('Store', as_index=False)['Weekly_Sales'].sum()
-        sales_by_store = sales_by_store.sort_values(by='Weekly_Sales', ascending=False)
+        attrUse, colUse = sales_attribute(isDaily)
+        targetDf: pd.DataFrame = self.get_gen_df()
+        # targetDf: pd.DataFrame = self.get_gen_df() if not isDaily else self.daily_df
+
+        print_stderr("generating top performers bar graph")
+        sales_by_store = targetDf.groupby('Store', as_index=False)[colUse].sum()
+        sales_by_store = sales_by_store.sort_values(by=colUse, ascending=False)
 
         if (not os.path.exists("./charts/top_performers.png")):
             isForecasted = self.isForecasted
@@ -173,9 +189,9 @@ class EDAFeatures:
             fig = px.bar(
                 sales_by_store.head(top_n),
                 x='Store',
-                y='Weekly_Sales',
+                y=colUse,
                 title=title,
-                labels={'Store': 'Store ID', 'Weekly_Sales': 'Total Sales ($)'},
+                labels={'Store': 'Store ID', colUse: 'Total Sales ($)'},
                 text_auto='.2s'
             )
             fig.write_image("./charts/top_performers.png")
@@ -184,17 +200,89 @@ class EDAFeatures:
         bottom_store = sales_by_store.iloc[-1]
 
         summary = (
-            f"Store {top_store['Store']} was the top performer with total sales of ${top_store['Weekly_Sales']:,.0f}. "
-            f"In contrast, Store {bottom_store['Store']} had the lowest sales with a total of ${bottom_store['Weekly_Sales']:,.0f}.\n"
+            f"Top performers:\n"
+        )
+        for i in range(min(top_n, len(sales_by_store))):
+            summary += f"Store {sales_by_store.iloc[i]['Store']:,.0f}: {sales_by_store.iloc[i][colUse]:,.0f}\n"
+        return summary
+
+    def department_analysis_no_holiday(self, tool_input: str = "", top_n: int = 5, isDaily: bool = False) -> str:
+        """
+        Analyzes top performing departments over all time in given data.
+        :param tool_input: Ignored
+        :param top_n: number of top performing departments to analyze
+        :return: textual summary of departments
+        """
+        attrUse, colUse = sales_attribute(isDaily)
+        targetDf: pd.DataFrame = self.get_gen_df() if not isDaily else self.daily_df
+
+        print(f"\n\n\n{targetDf.head()}\n\n\n")
+        targetDf.loc[:, 'Dept'] = targetDf['Dept'].apply(get_department_name)
+        sales_by_dept = targetDf.groupby('Dept', as_index=False)[colUse].sum()
+        sales_by_dept = sales_by_dept.sort_values(by=colUse, ascending=False)
+
+        if (not os.path.exists("./charts/department.png")):
+            fig = px.bar(
+                sales_by_dept.head(top_n),
+                x='Dept',
+                y=colUse,
+                title=f"Top {top_n} Performing Depts by Total Sales",
+                labels={'Dept': 'Dept ID', colUse: 'Total Sales ($)'},
+                text_auto='.2s'
+            )
+            fig.write_image("./charts/department.png")
+
+        top_dept = sales_by_dept.iloc[0]
+        bottom_dept = sales_by_dept.iloc[-1]
+
+        summary = (
+            f"The following department data is over general course of all time. Dept {top_dept['Dept']} was the top performer with total sales of ${top_dept[colUse]:,.0f}. "
+            f"In contrast, Dept {bottom_dept['Dept']} had the lowest sales with a total of ${bottom_dept[colUse]:,.0f}.\n"
         )
         return summary
 
-    def unemployment_correlation(self) -> str:
+    def department_analysis_holiday(self, tool_input: str = "", top_n: int = 5, isDaily: bool = False) -> str:
+        """
+        Analyzes top performing departments over only holidays in given data.
+        :param tool_input: Ignored
+        :param top_n: number of top performing departments to analyze
+        :return: textual summary of top departments
+        """
+        attrUse, colUse = sales_attribute(isDaily)
+        targetDf: pd.DataFrame = self.get_gen_df() if not isDaily else self.daily_df
+
+        print(f"\n\n\nDept Analysis Holiday:\n{targetDf.head()}\n\n\n")
+        targetDf['Dept'] = targetDf['Dept'].apply(get_department_name)
+        targetDf = targetDf[targetDf['IsHoliday'] == True]
+        sales_by_dept = targetDf.groupby('Dept', as_index=False)[colUse].sum()
+        sales_by_dept = sales_by_dept.sort_values(by=colUse, ascending=False)
+
+        if (not os.path.exists("./charts/department_holiday.png")):
+            fig = px.bar(
+                sales_by_dept.head(top_n),
+                x='Dept',
+                y=colUse,
+                title=f"Top {top_n} Performing Depts by Total Sales (Only Holidays)",
+                labels={'Dept': 'Dept ID', colUse: 'Total Sales ($)'},
+                text_auto='.2s'
+            )
+            fig.write_image("./charts/department_holiday.png")
+
+        top_dept = sales_by_dept.iloc[0]
+        bottom_dept = sales_by_dept.iloc[-1]
+
+        summary = (
+            f"The following department data is over only holidays. Dept {top_dept['Dept']} was the top performer with total sales of ${top_dept[colUse]:,.0f}. "
+            f"In contrast, Dept {bottom_dept['Dept']} had the lowest sales with a total of ${bottom_dept[colUse]:,.0f}.\n"
+        )
+        return summary
+
+    def unemployment_correlation(self, isDaily: bool = False) -> str:
         """
         Generate correlation heatmap between Weekly_Sales and Unemployment for each store
         """
         spec_df = self.spec_df
-        stderr_print("generating unemployment correlation heatmap")
+        print_stderr("generating unemployment correlation heatmap")
 
         correlations = []
         for store in spec_df['Store'].unique():
@@ -235,75 +323,7 @@ class EDAFeatures:
 
         return summary
 
-    def department_analysis_no_holiday(self, tool_input: str = "", top_n: int = 5) -> str:
-        """
-        Analyzes top performing departments over all time in given data.
-        :param tool_input: Ignored
-        :param top_n: number of top performing departments to analyze
-        :return: textual summary of departments
-        """
-        gen_df = self.get_gen_df()
-        print(f"\n\n\n{gen_df.head()}\n\n\n")
-        gen_df.loc[:, 'Dept'] = gen_df['Dept'].apply(get_department_name)
-        #spec_df = spec_df[spec_df['IsHoliday'] == True]
-        sales_by_dept = gen_df.groupby('Dept', as_index=False)['Weekly_Sales'].sum()
-        sales_by_dept = sales_by_dept.sort_values(by='Weekly_Sales', ascending=False)
-
-        if (not os.path.exists("./charts/department.png")):
-            fig = px.bar(
-                sales_by_dept.head(top_n),
-                x='Dept',
-                y='Weekly_Sales',
-                title=f"Top {top_n} Performing Depts by Total Sales",
-                labels={'Dept': 'Dept ID', 'Weekly_Sales': 'Total Sales ($)'},
-                text_auto='.2s'
-            )
-            fig.write_image("./charts/department.png")
-
-        top_dept = sales_by_dept.iloc[0]
-        bottom_dept = sales_by_dept.iloc[-1]
-
-        summary = (
-            f"The following department data is over general course of all time. Dept {top_dept['Dept']} was the top performer with total sales of ${top_dept['Weekly_Sales']:,.0f}. "
-            f"In contrast, Dept {bottom_dept['Dept']} had the lowest sales with a total of ${bottom_dept['Weekly_Sales']:,.0f}.\n"
-        )
-        return summary
-
-    def department_analysis_holiday(self, tool_input: str = "", top_n: int = 5) -> str:
-        """
-        Analyzes top performing departments over only holidays in given data.
-        :param tool_input: Ignored
-        :param top_n: number of top performing departments to analyze
-        :return: textual summary of top departments
-        """
-        gen_df = self.get_gen_df()
-        print(f"\n\n\nDept Analysis Holiday:\n{gen_df.head()}\n\n\n")
-        gen_df['Dept'] = gen_df['Dept'].apply(get_department_name)
-        gen_df = gen_df[gen_df['IsHoliday'] == True]
-        sales_by_dept = gen_df.groupby('Dept', as_index=False)['Weekly_Sales'].sum()
-        sales_by_dept = sales_by_dept.sort_values(by='Weekly_Sales', ascending=False)
-
-        if (not os.path.exists("./charts/department_holiday.png")):
-            fig = px.bar(
-                sales_by_dept.head(top_n),
-                x='Dept',
-                y='Weekly_Sales',
-                title=f"Top {top_n} Performing Depts by Total Sales (Only Holidays)",
-                labels={'Dept': 'Dept ID', 'Weekly_Sales': 'Total Sales ($)'},
-                text_auto='.2s'
-            )
-            fig.write_image("./charts/department_holiday.png")
-
-        top_dept = sales_by_dept.iloc[0]
-        bottom_dept = sales_by_dept.iloc[-1]
-
-        summary = (
-            f"The following department data is over only holidays. Dept {top_dept['Dept']} was the top performer with total sales of ${top_dept['Weekly_Sales']:,.0f}. "
-            f"In contrast, Dept {bottom_dept['Dept']} had the lowest sales with a total of ${bottom_dept['Weekly_Sales']:,.0f}.\n"
-        )
-        return summary
-
-    def analyze_economic_headwinds(self, tool_input: str = "") -> str:
+    def analyze_economic_headwinds(self, tool_input: str = "", isDaily: bool = False) -> str:
         """
         Creating a propensity score for measuring externa; factors against performance. Here, forecasting is avoided since
         it'll be hard to predict external factors of the market with only these paremeters. However, this may serve towards
@@ -444,6 +464,45 @@ class EDAFeatures:
 
         return " ".join(summary)
 
+    def analyze_event_impact(self, event_query: str, isDaily: bool = False) -> str:
+        """
+        Analyzes the sales impact of a specific business event, like a marketing campaign or product launch.
+        Use this to understand why sales may have changed during a specific period by correlating it with a known event.
+        :param event_query: event name to analyze
+        """
+        print(f"--- TOOL: Analyzing impact of '{event_query}' ---")
+
+        event = self.log.find_event(event_query)
+        if not event:
+            return f"I could not find any event in my log related to '{event_query}'."
+
+        # Define the event period and a baseline period for comparison
+        event_period_df = self.gen_df[
+            (self.gen_df['Date'] >= event.start_date) & (self.gen_df['Date'] <= event.end_date)
+            ]
+
+        baseline_start = event.start_date - pd.Timedelta(weeks=4)
+        baseline_end = event.start_date - pd.Timedelta(days=1)
+        baseline_df = self.gen_df[
+            (self.gen_df['Date'] >= baseline_start) & (self.gen_df['Date'] <= baseline_end)
+            ]
+
+        if event_period_df.empty:
+            return f"Found event '{event.description}', but no sales data exists for its date range."
+
+        avg_event_sales = event_period_df['Weekly_Sales'].mean()
+        avg_baseline_sales = baseline_df['Weekly_Sales'].mean() if not baseline_df.empty else 0
+
+        if avg_baseline_sales == 0:
+            return (f"During the event '{event.description}', average weekly sales were ${avg_event_sales:,.2f}. "
+                    "No baseline data is available for comparison.")
+
+        percentage_change = ((avg_event_sales - avg_baseline_sales) / avg_baseline_sales) * 100
+
+        return (f"Analysis for event '{event.description}' (from {event.start_date.date()} to {event.end_date.date()}):\n"
+                f"- Average weekly sales during the event were ${avg_event_sales:,.2f}.\n"
+                f"- This represents a {percentage_change:+.1f}% change compared to the 4-week baseline average of ${avg_baseline_sales:,.2f}.")
+    
 # crudder = CRUD()
 # print(os.getcwd())
 # EDAFeatures = EDAFeatures(crudder.gen_df, crudder.spec_df)
