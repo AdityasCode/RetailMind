@@ -1,83 +1,18 @@
-#%%
-import os
-from typing import List, Tuple
-
-from langchain import hub
 from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain.memory import ConversationBufferWindowMemory
+from langchain.schema import BaseMessage
 from langchain_openai import ChatOpenAI
-from openai import OpenAI
+from langchain import hub
+from typing import List
+import os
 from dotenv import load_dotenv
-
-from src.crud import CRUD
-from src.eda import EDAFeatures
-from src.utils import print_stderr
-
-class ChatBot:
-    def __init__(self, past_know: str, pred_know: str):
-        load_dotenv()
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.past_know: str = past_know
-        self.pred_know: str = pred_know
-
-    def set_past_know(self, past_know: str):
-        self.past_know = past_know
-
-    def set_pred_know(self, pred_know: str):
-        self.pred_know = pred_know
-
-    def get_gpt35_response(self, question: str, temperature: float = 0.7, max_tokens: int = 1024, model: str = "gpt-3.5-turbo") -> str:
-        past_know = self.past_know
-        pred_know = self.pred_know
-        client = self.client
-        print_stderr(f"Past know: {past_know}\nPred know: {pred_know}\nQuestion: {question}")
-        prompt = f"""
-You are 'RetailMind,' an expert AI business consultant. Your goal is to provide concise, data-driven analysis and strategic advice to retail decision-makers.
-
-You have been provided with two key data summaries:
-- **Historical Sales Data:**
-{past_know}
-- **Predicted Sales Forecast:**
-{pred_know}
-
-Based ONLY on the information in these summaries, you must synthesize the data, identify key business insights, and answer the user's question. If the data is insufficient to answer, state that clearly.
-
-Structure your response using the following professional format:
-
-Executive Summary
-[Directly and concisely answer the user's question here.]
-
----
-
-Key Analytical Insights
-- **Performance Trend:** Compare a key metric (e.g., average sales, peak/low points) from the historical data against the forecast. Is performance expected to improve, decline, or stay consistent?
-- **Holiday & Anomaly Impact:** State the observed or predicted impact of holidays on sales. Mention any standout peaks or dips.
-- **Correlation Insights:** Highlight the most significant relationship noted in the data (e.g., with unemployment) and identify any stores that are strong outliers.
-
----
-
-Strategic Recommendations
-- Based on your analysis, provide one or two concrete, actionable recommendations. This could be a potential business opportunity to explore or a risk to investigate further.
-
-Maintain a professional and direct tone. Use the specific figures from the provided summaries to support your analysis.
-
-**User Question:** {question}
-"""
-
-        response = client.chat.completions.create(model=model,
-                                                  messages=[
-                                                      {"role": "user", "content": prompt}
-                                                  ],
-                                                  temperature=temperature,
-                                                  max_tokens=max_tokens)
-        return response.choices[0].message.content.strip()
-
-#%%
 
 class RetailAgent:
     """
-    AI agent that uses CRUD and EDA to answer questions about the retail dataset.
+    AI agent that uses CRUD and EDA to answer questions about the retail dataset. Includes
+    LangChain conversational memory.
     """
-    def __init__(self, crud_obj: CRUD, eda_obj: EDAFeatures):
+    def __init__(self, crud_obj, eda_obj):
         """
         :param crud_obj: instantiated CRUD object
         :param eda_obj: instantiated EDAFeatures object
@@ -88,7 +23,14 @@ class RetailAgent:
             temperature=0.7,
             api_key=os.getenv("OPENAI_API_KEY")
         )
-        self.history: List[Tuple[str, str]] = []
+
+        # Preserve last 10 messages
+
+        self.memory = ConversationBufferWindowMemory(
+            memory_key="chat_history",
+            return_messages=True,
+            k=10
+        )
 
         self.tools = [
             crud_obj.sales_by_year_tool,
@@ -105,56 +47,59 @@ class RetailAgent:
 
         prompt = hub.pull("hwchase17/openai-tools-agent")
         enhanced_instructions = """
+You are RetailMind, an expert AI business consultant specialized in retail analytics. 
+Your goal is to provide concise, data-driven analysis and strategic advice to retail decision-makers.
+
 IMPORTANT ERROR HANDLING INSTRUCTIONS:
 - If any tool returns -1, this means the required data is not loaded or available
 - When you encounter a -1 return value:
-  1. Use the check_data_status tool to see what data is available
-  2. If daily data is needed but not loaded, use initialize_daily_data tool
-  3. Inform the user about the data loading step you're taking
-  4. Retry the original operation after loading the required data
+  1. Inform the user about the data availability issue
+  2. Suggest they check the data loading process
+  3. Provide alternative analysis approaches if possible
 - Always check data availability before performing complex analyses
-- If data cannot be loaded, clearly explain to the user what data is missing and what they need to provide
+- If data cannot be loaded, clearly explain to the user what data is missing
+
+CONVERSATION GUIDELINES:
+- Reference previous questions and answers when relevant
+- Build upon earlier analysis in the conversation
+- Provide consistent, coherent responses across the session
+- Remember user preferences and focus areas mentioned earlier
         """
         prompt.messages[0].prompt.template += enhanced_instructions
-        agent = create_tool_calling_agent(self.llm, self.tools, prompt)
-        self.executor = AgentExecutor(agent=agent, tools=self.tools, verbose=True)
 
-    def add_to_history(self, qna: Tuple[str, str]) -> None:
-        self.history.append((qna[0], qna[1]))
+        agent = create_tool_calling_agent(self.llm, self.tools, prompt)
+        self.executor = AgentExecutor(
+            agent=agent,
+            tools=self.tools,
+            memory=self.memory,
+            verbose=True,
+            return_intermediate_steps=True
+        )
 
     def ask(self, question: str) -> str:
         """
         Asks the agent a question and returns an answer.
+        Uses LangChain's built-in memory for conversation context.
         :param question (str): The user's question in natural language.
         :return: answer
         """
-        minContextMessages: int = min(5, len(self.history))
-        question_formatted: str = f"""
-Current question: {question}\n
-History of last {minContextMessages} QnAs for context, with the most recent QnAs at the end:\n
-        """
-        for i in range(minContextMessages):
-            question_formatted += self.history[len(self.history) - minContextMessages + i][0] + self.history[len(self.history) - i - 1][1]
-        response = self.executor.invoke({"input": question})
-        self.add_to_history((question, response['output']))
-        return response['output']
+        try:
+            response = self.executor.invoke({
+                "input": question,
+                "chat_history": self.memory.chat_memory.messages
+            })
+            return response['output']
+        except Exception as e:
+            return f"I encountered an error while processing your request:\n{str(e)}\n Please try rephrasing your question or check if your data is properly loaded."
 
-#%%
-# print(os.getcwd())
-# crud_manager = CRUD()
-# eda_analyzer = EDAFeatures(gen_df=crud_manager.gen_df, spec_df=crud_manager.spec_df)
-# #%%
-# retail_chatbot = RetailAgent(crud_obj=crud_manager, eda_obj=eda_analyzer)
-# #%%
-#
-# question1 = "What were the total sales for store 2 in 2011?"
-# answer1 = retail_chatbot.ask(question1)
-# print(f"\nAnswer: {answer1}")
-# #%%
-# question2 = "Show me an analysis of the top 3 performing stores."
-# answer2 = retail_chatbot.ask(question2)
-# print(f"\nAnswer: {answer2}")
-# #%%
-# question3 = "Tell me everything you can about this data, including stores, holiday performance, top performers, retail headwinds, etc."
-# answer3 = retail_chatbot.ask(question3)
-# print(f"\nAnswer: {answer3}")
+    def clear_memory(self):
+        """
+        Clear the conversation memory
+        """
+        self.memory.clear()
+
+    def get_conversation_history(self) -> List[BaseMessage]:
+        """
+        Get the current conversation history
+        """
+        return self.memory.chat_memory.messages
