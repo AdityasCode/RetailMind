@@ -8,15 +8,17 @@ from src.utils import print_stderr, sales_attribute, filter_stores, default_stor
 from langchain_core.tools import StructuredTool
 pd.set_option('display.max_columns', None)
 class CRUD:
-    def __init__(self, sales_path: str = "./test_data/train.csv", features_path: str = "./test_data/features.csv",
-                 daily_path: str = "./test_data/train_daily_1.csv", storeIDs: List[int] = default_storeIDs):
+    def __init__(self, sales_path: str = "../test_data/train.csv", features_path: str = "../test_data/features.csv",
+                 daily_path: str = "../test_data/train_daily_1.csv", storeIDs: List[int] = default_storeIDs):
         self.gen_df: pd.DataFrame = pd.DataFrame()
         self.spec_df: pd.DataFrame = pd.DataFrame()
         self.daily_df: pd.DataFrame = pd.DataFrame()
         self.storeIDs: List[int] = storeIDs
         self.add_sales_data(sales_path)
         self.add_external_factors(features_path)
-        self.add_daily_data(daily_path)
+        if daily_path and os.path.exists(daily_path):
+            self.add_daily_data(daily_path)
+            self.aggregate_daily_to_weekly()
 
         self.sales_by_year_tool = StructuredTool.from_function(
             func=self.get_total_sales_for_stores_for_years,
@@ -74,6 +76,94 @@ class CRUD:
             chunks.append(chunk)
         general_df = pd.concat(chunks, ignore_index=True)
         self.gen_df = filter_stores(general_df, self.storeIDs)
+
+    def aggregate_daily_to_weekly(self) -> None:
+        """
+        Aggregates daily_df data into weekly format compatible with gen_df structure.
+        """
+        if self.daily_df.empty:
+            print_stderr("No daily data to aggregate")
+            return
+
+        print_stderr("Aggregating daily data to weekly format")
+
+        try:
+            self.daily_df['Date'] = pd.to_datetime(self.daily_df['Date'])
+
+            if not self.gen_df.empty:
+                sample_dates = pd.to_datetime(self.gen_df['Date'].head(5))
+                day_of_week = sample_dates.dt.day_name().iloc[0]
+                print_stderr(f"Weekly data appears to start on: {day_of_week}")
+
+            # Create weekly periods
+
+            self.daily_df['Week_Start'] = self.daily_df['Date'].dt.to_period('W-FRI').dt.start_time
+            weekly_aggregated = self.daily_df.groupby(['Store', 'Dept', 'Week_Start']).agg({
+                'Daily_Sales': 'sum',
+                'IsHoliday': 'any'
+            }).reset_index()
+
+            weekly_aggregated.rename(columns={
+                'Week_Start': 'Date',
+                'Daily_Sales': 'Weekly_Sales'
+            }, inplace=True)
+
+            weekly_aggregated['Store'] = weekly_aggregated['Store'].astype(int)
+            weekly_aggregated['Dept'] = weekly_aggregated['Dept'].astype(int)
+            weekly_aggregated['Weekly_Sales'] = weekly_aggregated['Weekly_Sales'].astype(float)
+            weekly_aggregated['IsHoliday'] = weekly_aggregated['IsHoliday'].astype(bool)
+
+            if not self.gen_df.empty:
+                existing_dates = set(pd.to_datetime(self.gen_df['Date']).dt.date)
+                new_dates = set(pd.to_datetime(weekly_aggregated['Date']).dt.date)
+                overlapping_dates = existing_dates.intersection(new_dates)
+
+                if overlapping_dates:
+                    print_stderr(f"Found {len(overlapping_dates)} overlapping dates between weekly and daily data")
+
+                    # Keep existing weekly data, only add new dates
+
+                    dates_to_add = new_dates - existing_dates
+                    if dates_to_add:
+                        new_rows = weekly_aggregated[
+                            pd.to_datetime(weekly_aggregated['Date']).dt.date.isin(dates_to_add)
+                        ]
+                        self.gen_df = pd.concat([self.gen_df, new_rows], ignore_index=True)
+                        self.gen_df = self.gen_df.sort_values(['Store', 'Dept', 'Date']).reset_index(drop=True)
+                        print_stderr(f"Added {len(new_rows)} new weekly records from daily aggregation")
+                    else:
+                        print_stderr("No new dates to add - daily data fully overlaps with existing weekly data")
+                else:
+                    self.gen_df = pd.concat([self.gen_df, weekly_aggregated], ignore_index=True)
+                    self.gen_df = self.gen_df.sort_values(['Store', 'Dept', 'Date']).reset_index(drop=True)
+                    print_stderr(f"Extended dataset with {len(weekly_aggregated)} weekly records from daily data")
+            else:
+
+                # gen_df does not exist
+
+                self.gen_df = weekly_aggregated
+                print_stderr(f"Created gen_df from daily aggregation with {len(weekly_aggregated)} records")
+
+            print_stderr("Daily to weekly aggregation completed successfully")
+
+        except Exception as e:
+            print_stderr(f"Error in daily to weekly aggregation: {str(e)}")
+
+    def get_date_range_summary(self) -> str:
+        """
+        Helper function to understand the date ranges in both datasets
+        """
+        summary = "Dataset Date Ranges:\n"
+
+        if not self.gen_df.empty:
+            gen_dates = pd.to_datetime(self.gen_df['Date'])
+            summary += f"Weekly Data: {gen_dates.min().date()} to {gen_dates.max().date()} ({len(gen_dates.unique())} unique dates)\n"
+
+        if not self.daily_df.empty:
+            daily_dates = pd.to_datetime(self.daily_df['Date'])
+            summary += f"Daily Data: {daily_dates.min().date()} to {daily_dates.max().date()} ({len(daily_dates.unique())} unique dates)\n"
+
+        return summary
 
     def get_total_sales_for_stores_for_years(self, storeIDs: Optional[List[int]] = None, years: Optional[List[int]] = None) -> int:
         if self.gen_df.empty: return -1
@@ -201,9 +291,11 @@ class EventLog:
         query_embedding = self.model.encode(query)
 
         # Calculate cosine similarity between the query and all event embeddings
+
         similarities = [1 - cosine(query_embedding, event.embedding) for event in self.log]
 
         # Find the index of the most similar event
+
         most_similar_index = similarities.index(max(similarities))
 
         return self.log[most_similar_index]
