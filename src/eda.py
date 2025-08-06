@@ -7,11 +7,10 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from langchain_core.tools import StructuredTool
-
 from src.crud import EventLog
 from src.utils import sales_attribute, filter_stores, get_department_name
 from src.utils import print_stderr
-
+from pathlib import Path
 
 class EDAFeatures:
     """
@@ -44,6 +43,9 @@ class EDAFeatures:
         print_stderr(gen_df)
         print_stderr(spec_df)
 
+        self.output_dir = Path("charts")
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
         self.sales_t_tool = StructuredTool.from_function(
             func=self.sales_t,
             name="sales_over_time_chart",
@@ -57,7 +59,7 @@ class EDAFeatures:
         self.top_performing_stores_tool = StructuredTool.from_function(
             func=self.top_performing_stores,
             name="top_performing_stores_analyzer",
-            description="Generates a bar chart and summary of top-performing stores."
+            description="Analyzes the top performing stores by total sales."
         )
         self.department_analysis_holiday_tool = StructuredTool.from_function(
             func=self.department_analysis_holiday,
@@ -80,9 +82,6 @@ class EDAFeatures:
             description="Analyzes the impact of an event on sales."
         )
 
-    # def check_exists(self, path: str) -> int:
-    #     os.chdir("src")
-        
     def get_gen_df(self) -> pd.DataFrame: return self.gen_df
     def get_spec_df(self) -> pd.DataFrame: return self.spec_df
     def set_gen_df(self, gen_df: pd.DataFrame) -> None: self.gen_df = gen_df
@@ -104,18 +103,18 @@ class EDAFeatures:
         if self.storeIDs: result += f"These statistics are only for Store(s) {self.storeIDs}."
         return result
 
-    def sales_t(self, tool_input: str = "", isDaily: bool = False) -> str:
+    def sales_t(self, isDaily: bool = False) -> str:
         """
         Generates a graph for sales vs. time.
-        :param tool_input: Ignored
-        :return: textual summary of sales vs. time
+        :return: summary with full file path for chart display.
         """
         attrUse, colUse = sales_attribute(isDaily)
         print_stderr("generating sales graph. gen_df:")
         print_stderr(self.get_gen_df())
         targetDf: pd.DataFrame = self.get_gen_df() if not isDaily else self.daily_df
         time_series = targetDf.groupby('Date', as_index=False)[colUse].sum()
-        if (not os.path.exists("./charts/sales.png")):
+        chart_path = self.output_dir / "sales.png"
+        if not os.path.exists(chart_path):
             isForecasted = self.isForecasted
             title = f"(Forecasted) Total {attrUse} Over Time" if isForecasted else f"Total {attrUse} Over Time"
             fig = px.line(
@@ -125,7 +124,7 @@ class EDAFeatures:
                 title=title,
                 labels={colUse: f'Total {attrUse} ($)'}
             )
-            fig.write_image("./charts/sales.png")
+            fig.write_image(chart_path)
 
         peak_sales_period = time_series.loc[time_series[colUse].idxmax()]
         lowest_sales_period = time_series.loc[time_series[colUse].idxmin()]
@@ -135,27 +134,28 @@ class EDAFeatures:
             f"Overall sales peaked at ${peak_sales_period[colUse]:,.0f} on the week of {peak_sales_period['Date']}. "
             f"The lowest point was ${lowest_sales_period[colUse]:,.0f} on {lowest_sales_period['Date']}. "
             f"The average {attrUse} across the entire period was ${average_sales:,.0f}.\n"
+            f"Chart saved to: {chart_path}"
         )
         return summary
 
-    def holiday_impact(self, tool_input: str = "", isDaily: bool = False) -> str:
+    def holiday_impact(self, isDaily: bool = False) -> str:
         """
         Creates a box plot for the holiday impact on sales.
-        :param tool_input: Ignored
-        :return: textual summary of the holiday impact
+        :return: summary with full file path for chart display.
         """
         attrUse, colUse = sales_attribute(isDaily)
         targetDf: pd.DataFrame = self.get_gen_df() if not isDaily else self.daily_df
 
+        chart_path = self.output_dir / "holiday.png"
         print_stderr("generating holiday impact box plot")
-        if (not os.path.exists("./charts/holiday.png")):
+        if (not os.path.exists(chart_path)):
             plt.figure(figsize=(8, 6))
             sns.boxplot(x='IsHoliday', y=colUse, data=targetDf)
             plt.xlabel("Is Holiday")
             plt.ylabel(f"{attrUse} ($)")
             plt.title(f"Distribution of {attrUse}: Holiday vs Non-Holiday")
             plt.grid(True, axis='y')
-            plt.savefig("./charts/holiday.png")
+            plt.savefig(chart_path)
 
         holiday_sales = targetDf[targetDf['IsHoliday'] == True][colUse].mean()
         non_holiday_sales = targetDf[targetDf['IsHoliday'] == False][colUse].mean()
@@ -164,13 +164,13 @@ class EDAFeatures:
         summary = (
             f"On average, sales during holiday weeks (${holiday_sales:,.0f}) were {percentage_diff:.1f}% higher "
             f"than sales during non-holiday weeks (${non_holiday_sales:,.0f}).\n"
+            f"Chart saved to: {chart_path}"
         )
         return summary
 
-    def top_performing_stores(self, tool_input: str = "", top_n: int = 5, isDaily: bool = False) -> str:
+    def top_performing_stores(self, top_n: int = 5, isDaily: bool = False) -> str:
         """
         Analyzes the top performing stores in the given data.
-        :param tool_input: Ignored
         :param top_n: number of top performers to analyze
         :param isForecasted: 0 for non forecasted data, 1 for forecasted data.
         :return: textual summary of top performers
@@ -183,7 +183,8 @@ class EDAFeatures:
         sales_by_store = targetDf.groupby('Store', as_index=False)[colUse].sum()
         sales_by_store = sales_by_store.sort_values(by=colUse, ascending=False)
 
-        if (not os.path.exists("./charts/top_performers.png")):
+        chart_path = self.output_dir / "top_performers.png"
+        if not os.path.exists(chart_path):
             isForecasted = self.isForecasted
             title = f"(Forecasted) Top {top_n} Performing Stores by Total Sales" if isForecasted else f"Top {top_n} Performing Stores by Total Sales"
             fig = px.bar(
@@ -196,14 +197,12 @@ class EDAFeatures:
             )
             fig.write_image("./charts/top_performers.png")
 
-        top_store = sales_by_store.iloc[0]
-        bottom_store = sales_by_store.iloc[-1]
-
         summary = (
             f"Top performers:\n"
         )
         for i in range(min(top_n, len(sales_by_store))):
             summary += f"Store {sales_by_store.iloc[i]['Store']:,.0f}: {sales_by_store.iloc[i][colUse]:,.0f}\n"
+        summary += f"Chart saved to: {chart_path}"
         return summary
 
     def department_analysis_no_holiday(self, tool_input: str = "", top_n: int = 5, isDaily: bool = False) -> str:
@@ -221,7 +220,8 @@ class EDAFeatures:
         sales_by_dept = targetDf.groupby('Dept', as_index=False)[colUse].sum()
         sales_by_dept = sales_by_dept.sort_values(by=colUse, ascending=False)
 
-        if (not os.path.exists("./charts/department.png")):
+        chart_path = self.output_dir / "departments.png"
+        if not os.path.exists(chart_path):
             fig = px.bar(
                 sales_by_dept.head(top_n),
                 x='Dept',
@@ -230,7 +230,7 @@ class EDAFeatures:
                 labels={'Dept': 'Dept ID', colUse: 'Total Sales ($)'},
                 text_auto='.2s'
             )
-            fig.write_image("./charts/department.png")
+            fig.write_image(chart_path)
 
         top_dept = sales_by_dept.iloc[0]
         bottom_dept = sales_by_dept.iloc[-1]
@@ -239,12 +239,13 @@ class EDAFeatures:
             f"The following department data is over general course of all time. Dept {top_dept['Dept']} was the top performer with total sales of ${top_dept[colUse]:,.0f}. "
             f"In contrast, Dept {bottom_dept['Dept']} had the lowest sales with a total of ${bottom_dept[colUse]:,.0f}.\n"
         )
+        summary += f"Chart saved to: {chart_path}"
         return summary
 
-    def department_analysis_holiday(self, tool_input: str = "", top_n: int = 5, isDaily: bool = False) -> str:
+    def department_analysis_holiday(self, top_n: int = 5, isDaily: bool = False) -> str:
         """
         Analyzes top performing departments over only holidays in given data.
-        :param tool_input: Ignored
+        :param isDaily: True if currently utilizing daily data, False otherwise
         :param top_n: number of top performing departments to analyze
         :return: textual summary of top departments
         """
@@ -257,7 +258,8 @@ class EDAFeatures:
         sales_by_dept = targetDf.groupby('Dept', as_index=False)[colUse].sum()
         sales_by_dept = sales_by_dept.sort_values(by=colUse, ascending=False)
 
-        if (not os.path.exists("./charts/department_holiday.png")):
+        chart_path = self.output_dir / "departments_hol.png"
+        if not os.path.exists(chart_path):
             fig = px.bar(
                 sales_by_dept.head(top_n),
                 x='Dept',
@@ -266,7 +268,7 @@ class EDAFeatures:
                 labels={'Dept': 'Dept ID', colUse: 'Total Sales ($)'},
                 text_auto='.2s'
             )
-            fig.write_image("./charts/department_holiday.png")
+            fig.write_image(chart_path)
 
         top_dept = sales_by_dept.iloc[0]
         bottom_dept = sales_by_dept.iloc[-1]
@@ -275,61 +277,16 @@ class EDAFeatures:
             f"The following department data is over only holidays. Dept {top_dept['Dept']} was the top performer with total sales of ${top_dept[colUse]:,.0f}. "
             f"In contrast, Dept {bottom_dept['Dept']} had the lowest sales with a total of ${bottom_dept[colUse]:,.0f}.\n"
         )
+        summary += f"Chart saved to: {chart_path}"
         return summary
 
-    def unemployment_correlation(self, isDaily: bool = False) -> str:
+    def analyze_economic_headwinds(self, isDaily: bool = False) -> str:
         """
-        Generate correlation heatmap between Weekly_Sales and Unemployment for each store
-        """
-        spec_df = self.spec_df
-        print_stderr("generating unemployment correlation heatmap")
-
-        correlations = []
-        for store in spec_df['Store'].unique():
-            store_data = spec_df[spec_df['Store'] == store]
-            if len(store_data) > 1:  # Need at least 2 data points for correlation
-                corr = store_data['Weekly_Sales'].corr(store_data['Unemployment'])
-                correlations.append({'Store': store, 'Correlation': corr})
-
-        corr_df = pd.DataFrame(correlations)
-
-        heatmap_data = corr_df.set_index('Store')[['Correlation']].T
-
-        plt.figure(figsize=(25, 5))
-        sns.heatmap(
-            heatmap_data,
-            annot=True,
-            cmap='RdBu_r',
-            center=0,
-            fmt='.3f',
-            cbar_kws={'label': 'Correlation Coefficient'},
-            annot_kws={'size': 8}
-        )
-        plt.title("Correlation between Weekly Sales and Unemployment by Store")
-        plt.xlabel("Store ID")
-        plt.ylabel("Correlation")
-        plt.tight_layout()
-        plt.show()
-
-        avg_correlation = corr_df['Correlation'].mean()
-        strongest_positive = corr_df.loc[corr_df['Correlation'].idxmax()]
-        strongest_negative = corr_df.loc[corr_df['Correlation'].idxmin()]
-
-        summary = (
-            f"The average correlation between weekly sales and unemployment across all stores is {avg_correlation:.3f}. "
-            f"Store {strongest_positive['Store']} shows the strongest positive correlation ({strongest_positive['Correlation']:.3f}), "
-            f"while Store {strongest_negative['Store']} has the strongest negative correlation ({strongest_negative['Correlation']:.3f}).\n"
-        )
-
-        return summary
-
-    def analyze_economic_headwinds(self, tool_input: str = "", isDaily: bool = False) -> str:
-        """
-        Creating a propensity score for measuring externa; factors against performance. Here, forecasting is avoided since
+        Creating a propensity score for measuring external factors against performance. Here, forecasting is avoided since
         it'll be hard to predict external factors of the market with only these paremeters. However, this may serve towards
         1. Comparing with weekly sales to examine responses to external factors
         2. Is the budget flexible enough to react to changes?
-        :param tool_input: Ignored
+        :param isDaily: True if currently utilizing daily data, False otherwise
         :return: textual summary of the most recent trend, 12 week trends, Y-o-Y trends, overall avg, max, min and volatility.
         """
 
@@ -371,7 +328,8 @@ class EDAFeatures:
 
         # Visual
 
-        if (not os.path.exists("./charts/propensity.png")):
+        chart_path = self.output_dir / "propensity.png"
+        if not os.path.exists(chart_path):
             plt.style.use('seaborn-v0_8-whitegrid')
             fig, ax = plt.subplots(figsize=(14, 7))
 
@@ -381,7 +339,7 @@ class EDAFeatures:
             ax.set_ylabel('Index Score (Higher = More Favorable)', fontsize=12)
             ax.legend()
             ax.grid(True)
-            plt.savefig('./charts/propensity.png')
+            plt.savefig(chart_path)
 
         # Generating features to measure trend, seasonality and lag
 
@@ -461,16 +419,16 @@ class EDAFeatures:
                 f"Recent market stability, measured by volatility over the last quarter ({latest_volatility:.2f}), "
                 f"is {volatility_comparison} the period's average of {overall_volatility:.2f}."
             )
+        summary.append(f"\nChart saved to: {chart_path}")
 
         return " ".join(summary)
 
-    def analyze_event_impact(self, event_query: str, isDaily: bool = False) -> str:
+    def analyze_event_impact(self, event_query: str) -> str:
         """
         Analyzes the sales impact of a specific business event, like a marketing campaign or product launch.
         Use this to understand why sales may have changed during a specific period by correlating it with a known event.
         :param event_query: event name to analyze
         """
-        print(f"--- TOOL: Analyzing impact of '{event_query}' ---")
 
         event = self.log.find_event(event_query)
         if not event:
@@ -502,8 +460,3 @@ class EDAFeatures:
         return (f"Analysis for event '{event.description}' (from {event.start_date.date()} to {event.end_date.date()}):\n"
                 f"- Average weekly sales during the event were ${avg_event_sales:,.2f}.\n"
                 f"- This represents a {percentage_change:+.1f}% change compared to the 4-week baseline average of ${avg_baseline_sales:,.2f}.")
-    
-# crudder = CRUD()
-# print(os.getcwd())
-# EDAFeatures = EDAFeatures(crudder.gen_df, crudder.spec_df)
-# print(EDAFeatures.generate_graphs(storeID=[1]))
