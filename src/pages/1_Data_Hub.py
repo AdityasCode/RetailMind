@@ -4,7 +4,7 @@ import os
 import tempfile
 import sys
 from autogluon.timeseries import TimeSeriesPredictor
-sys.path.append('..')
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from src.crud import CRUD, EventLog, Event
 from src.eda import EDAFeatures
 from src.agent import RetailAgent
