@@ -74,11 +74,9 @@ def display_response_with_images(response_text):
     st.markdown(response_text)
 
     chart_patterns = [
-        r'chart.*?\.png',
-        r'graph.*?\.png',
-        r'plot.*?\.png',
-        r'./charts/\w+\.png',
-        r'./assets/charts/\w+\.png'
+        r'charts/\w+\.png',
+        r'assets/charts/\w+\.png',
+        r'\w+\.png'
     ]
 
     charts_found = []
@@ -86,22 +84,21 @@ def display_response_with_images(response_text):
         matches = re.findall(pattern, response_text, re.IGNORECASE)
         charts_found.extend(matches)
 
-    # common_charts = [
-    #     "./charts/sales.png",
-    #     "./charts/holiday.png",
-    #     "./charts/top_performers.png",
-    #     "./charts/department.png",
-    #     "./charts/department_holiday.png",
-    #     "./charts/propensity.png",
-    #     "./assets/charts/sales.png",
-    #     "./assets/charts/holiday.png",
-    #     "./assets/charts/top_performers.png"
-    # ]
+    common_charts = [
+        "./charts/sales.png",
+        "./charts/holiday.png",
+        "./charts/top_performers.png",
+        "./charts/department.png",
+        "./charts/department_holiday.png",
+        "./charts/propensity.png",
+        "./assets/charts/sales.png",
+        "./assets/charts/holiday.png",
+        "./assets/charts/top_performers.png"
+    ]
 
     # Display any charts that exist
     displayed_charts = set()
 
-    # for chart_path in charts_found + common_charts:
     for chart_path in charts_found:
         if chart_path not in displayed_charts and os.path.exists(chart_path):
             try:

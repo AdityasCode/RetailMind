@@ -34,6 +34,7 @@ def filter_stores(df: pd.DataFrame, storeID: List[int]) -> pd.DataFrame:
 
 def get_department_id(dept_name) -> int:
     if dept_name:
+        if type(dept_name) == int: return dept_name
         try:
             tmp = department_names.index(dept_name)
             if type(tmp) != int:
