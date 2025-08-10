@@ -9,7 +9,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from langchain_core.tools import StructuredTool
 from src.crud import EventLog
-from src.utils import sales_attribute, filter_stores, get_department_name
+from src.utils import sales_attribute, filter_stores, get_department_name, get_department_id
 from src.utils import print_stderr
 from pathlib import Path
 
@@ -256,7 +256,7 @@ class EDAFeatures:
         targetDf: pd.DataFrame = self.get_gen_df() if not isDaily else self.daily_df
 
         print(f"\n\n\nDept Analysis Holiday:\n{targetDf.head()}\n\n\n")
-        targetDf['Dept'] = targetDf['Dept'].apply(get_department_name)
+        targetDf.loc[:, 'Dept'] = targetDf['Dept'].apply(get_department_name)
         targetDf = targetDf[targetDf['IsHoliday'] == True]
         sales_by_dept = targetDf.groupby('Dept', as_index=False)[colUse].sum()
         sales_by_dept = sales_by_dept.sort_values(by=colUse, ascending=False)
@@ -465,8 +465,10 @@ class EDAFeatures:
                 f"- This represents a {percentage_change:+.1f}% change compared to the 4-week baseline average of ${avg_baseline_sales:,.2f}.")
 
     def _generate_predictions(self) -> pd.DataFrame:
+        targetDf = self.gen_df
+        targetDf.loc[:, 'Dept'] = targetDf['Dept'].apply(get_department_id)
         train_data = TimeSeriesDataFrame.from_data_frame(
-            self.gen_df,
+            targetDf,
             id_column="Store",
             timestamp_column="Date"
         )

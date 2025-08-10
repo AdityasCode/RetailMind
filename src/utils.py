@@ -32,6 +32,15 @@ def filter_stores(df: pd.DataFrame, storeID: List[int]) -> pd.DataFrame:
         print_stderr("all stores")
     return df
 
+def get_department_id(dept_name) -> int:
+    if dept_name:
+        try:
+            tmp = department_names.index(dept_name)
+            if type(tmp) != int:
+                return -1
+            return tmp
+        except ValueError:
+            return -1
 
 def get_department_name(dept_id) -> str:
     """
