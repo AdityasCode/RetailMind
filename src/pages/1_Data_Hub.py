@@ -12,8 +12,8 @@ from src.utils import parse_pdf
 
 st.set_page_config(page_title="Data Hub - RetailMind", layout="wide")
 
-st.title("Data Hub")
-st.markdown("### Upload and validate your retail datasets")
+st.title(f"Data Hub")
+st.markdown(f"### Upload and validate your retail datasets")
 
 # Check if data is already loaded
 if hasattr(st.session_state, 'agent') and st.session_state.agent is not None:
@@ -229,7 +229,7 @@ if process_button and required_files:
                 event_log=event_log,
                 daily_df=crud.daily_df,
                 storeIDs=crud.storeIDs,
-                predictor=TimeSeriesPredictor.load("../autogluon-m4-hourly")
+                predictor=TimeSeriesPredictor.load("autogluon-m4-hourly")
             )
             agent = RetailAgent(crud_obj=crud, eda_obj=eda_analyzer)
 
