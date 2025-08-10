@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
+from autogluon.timeseries import TimeSeriesPredictor, TimeSeriesDataFrame
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from langchain_core.tools import StructuredTool
@@ -16,8 +17,8 @@ class EDAFeatures:
     """
     EDA Features to analyze data.
     """
-    def __init__(self, gen_df: pd.DataFrame, spec_df: pd.DataFrame, event_log: EventLog,
-                 daily_df: pd.DataFrame = None, isForecasted: int = 0, storeIDs: List[int] = None):
+    def __init__(self, gen_df: pd.DataFrame, spec_df: pd.DataFrame, event_log: EventLog, predictor: TimeSeriesPredictor,
+                 daily_df: pd.DataFrame = None, storeIDs: List[int] = None):
         """
         Initializes the toolkit with dataframes. Gen df and spec df must have the given columns respectively, case-sensitive:
         Store | Dept | Date | Weekly_Sales | IsHoliday
@@ -26,9 +27,9 @@ class EDAFeatures:
         self.gen_df = gen_df
         self.spec_df = spec_df
         self.daily_df = daily_df
-        self.isForecasted = isForecasted
         self.log = event_log
         self.storeIDs = storeIDs
+        self.predictor = predictor
 
         # Filtering gen and spec DFs
 
@@ -42,6 +43,7 @@ class EDAFeatures:
         gen_df, spec_df = self.gen_df, self.spec_df
         print_stderr(gen_df)
         print_stderr(spec_df)
+        self.pred_df: pd.DataFrame = pd.DataFrame()
 
         self.output_dir = Path("charts")
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -81,6 +83,11 @@ class EDAFeatures:
             name="event_impact_analyzer",
             description="Analyzes the impact of an event on sales."
         )
+        self.forecast_sales_tool = StructuredTool.from_function(
+            func=self.forecast_weekly_sales,
+            name="forecast_weekly_sales",
+            description="Generates a sales forecast for a specified number of future weeks."
+        )
 
     def get_gen_df(self) -> pd.DataFrame: return self.gen_df
     def get_spec_df(self) -> pd.DataFrame: return self.spec_df
@@ -94,12 +101,11 @@ class EDAFeatures:
         # Generating all features
 
         result += self.sales_t_tool.invoke({})
-        if not self.isForecasted: result += self.holiday_impact_tool.invoke({})
+        result += self.holiday_impact_tool.invoke({})
         if self.storeIDs and len(self.storeIDs) > 1: result += self.top_performing_stores_tool.invoke({})
-        if not self.isForecasted:
-            result += self.department_analysis_holiday_tool.invoke({})
-            result += self.department_analysis_no_holiday_tool.invoke({})
-            result += self.analyze_economic_headwinds_tool.invoke({})
+        result += self.department_analysis_holiday_tool.invoke({})
+        result += self.department_analysis_no_holiday_tool.invoke({})
+        result += self.analyze_economic_headwinds_tool.invoke({})
         if self.storeIDs: result += f"These statistics are only for Store(s) {self.storeIDs}."
         return result
 
@@ -115,8 +121,7 @@ class EDAFeatures:
         time_series = targetDf.groupby('Date', as_index=False)[colUse].sum()
         chart_path = self.output_dir / "sales.png"
         if not os.path.exists(chart_path):
-            isForecasted = self.isForecasted
-            title = f"(Forecasted) Total {attrUse} Over Time" if isForecasted else f"Total {attrUse} Over Time"
+            title = f"Total {attrUse} Over Time"
             fig = px.line(
                 time_series,
                 x='Date',
@@ -172,7 +177,6 @@ class EDAFeatures:
         """
         Analyzes the top performing stores in the given data.
         :param top_n: number of top performers to analyze
-        :param isForecasted: 0 for non forecasted data, 1 for forecasted data.
         :return: textual summary of top performers
         """
         attrUse, colUse = sales_attribute(isDaily)
@@ -185,8 +189,7 @@ class EDAFeatures:
 
         chart_path = self.output_dir / "top_performers.png"
         if not os.path.exists(chart_path):
-            isForecasted = self.isForecasted
-            title = f"(Forecasted) Top {top_n} Performing Stores by Total Sales" if isForecasted else f"Top {top_n} Performing Stores by Total Sales"
+            title = f"Top {top_n} Performing Stores by Total Sales"
             fig = px.bar(
                 sales_by_store.head(top_n),
                 x='Store',
@@ -460,3 +463,49 @@ class EDAFeatures:
         return (f"Analysis for event '{event.description}' (from {event.start_date.date()} to {event.end_date.date()}):\n"
                 f"- Average weekly sales during the event were ${avg_event_sales:,.2f}.\n"
                 f"- This represents a {percentage_change:+.1f}% change compared to the 4-week baseline average of ${avg_baseline_sales:,.2f}.")
+
+    def _generate_predictions(self) -> pd.DataFrame:
+        train_data = TimeSeriesDataFrame.from_data_frame(
+            self.gen_df,
+            id_column="Store",
+            timestamp_column="Date"
+        )
+
+        predictor = self.predictor
+        predictions = predictor.predict(train_data)
+        chart_path = self.output_dir / "forecasted.png"
+        if not os.path.exists(chart_path):
+            fig = predictor.plot(
+                train_data,
+                predictions,
+                max_history_length=150
+            )
+            fig.savefig(chart_path)
+        pred_df = predictions.reset_index()
+        pred_df.rename(columns={"item_id": "Store", "timestamp": "Date", "mean": "Weekly_Sales"}, inplace=True)
+        pred_df["Weekly_Sales"] = pred_df["Weekly_Sales"].apply(lambda x: round(x, 2))
+
+        self.forecast_plot_path = chart_path
+        self.forecast_df = pred_df
+
+        return pred_df
+
+    def forecast_weekly_sales(self, num_weeks: int = 12) -> str:
+        """
+        Generates a sales forecast for a specified number of future weeks.
+        Runs a predictive model and returns a summary of the forecast.
+        """
+        pred_df = self._generate_predictions()
+        self.pred_df = pred_df[['Store', 'Date', 'Weekly_Sales']].copy()
+        forecast_period = pred_df.head(num_weeks)
+        avg_predicted_sales = forecast_period['Weekly_Sales'].mean()
+        peak_sales_date = forecast_period.loc[forecast_period['Weekly_Sales'].idxmax()]['Date'].date()
+        peak_sales_value = forecast_period['Weekly_Sales'].max()
+        chart_path = self.output_dir / "forecasted.png"
+        summary = (
+            f"Sales forecast for the next {num_weeks} weeks generated successfully.\n"
+            f"- The average predicted weekly sales are ${avg_predicted_sales:,.2f}.\n"
+            f"- The forecast peaks at ${peak_sales_value:,.2f} on {peak_sales_date}.\n"
+            f"- Chart saved to {chart_path}"
+        )
+        return summary
