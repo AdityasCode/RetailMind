@@ -89,7 +89,7 @@ with tab1:
         except Exception as e:
             st.error(f"Error generating sales trend: {str(e)}")
 
-    if len(eda_analyzer.pred_df) is not 0:
+    if len(eda_analyzer.pred_df) != 0:
         with col4:
             st.subheader("Key Metrics")
             try:
