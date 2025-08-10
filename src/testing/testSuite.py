@@ -1,9 +1,8 @@
-import datetime
 import os
-from src.agent import RetailAgent
+from autogluon.timeseries import TimeSeriesPredictor
 from src.crud import Event, EventLog, CRUD
 from src.eda import EDAFeatures
-from src.utils import print_stderr, parse_pdf
+from src.utils import print_stderr
 
 
 def cwd_test():
@@ -29,8 +28,8 @@ def logTest():
     print_stderr(myLog.toString())
     return myLog
 
-def dailyCRUDTest():
-    crudder = CRUD()
+def dailyCRUDTest(crudder):
+    print_stderr(crudder.gen_df)
     print_stderr(crudder.daily_df)
 
 def agentTest(retail_chatbot):
@@ -56,17 +55,24 @@ def headwinds_test(edaer: EDAFeatures):
 def top_test(edaer: EDAFeatures):
     print(edaer.top_performing_stores())
 
+def pred_test(edaer: EDAFeatures):
+    x = edaer.forecast_weekly_sales()
+    print_stderr("pred test")
+    print_stderr(x)
+    print_stderr(edaer.pred_df)
+
 def main():
     cwd_test()
     crudder = CRUD()
     log = logTest()
-    edaer = EDAFeatures(crudder.gen_df, crudder.spec_df, daily_df=crudder.daily_df, event_log=log, storeIDs=None)
+    edaer = EDAFeatures(crudder.gen_df, crudder.spec_df, daily_df=crudder.daily_df, event_log=log, storeIDs=None, predictor=TimeSeriesPredictor.load("../autogluon-m4-hourly"))
     # retail_chatbot = RetailAgent(crudder, edaer)
     # logTest()
-    # dailyCRUDTest()
+    # dailyCRUDTest(crudder)
     # agentTest(retail_chatbot)
     # headwinds_test(edaer)
-    top_test(edaer)
+    # top_test(edaer)
+    pred_test(edaer=edaer)
 
 
 if __name__ == "__main__":
