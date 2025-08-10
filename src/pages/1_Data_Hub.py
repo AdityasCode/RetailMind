@@ -174,8 +174,9 @@ if not required_files:
     st.warning("Please upload both required files (Sales Training Data and External Features Data) to proceed.")
 
 # process button
+
 process_button = st.button(
-    "Process & Validate Data",
+    "Process and Validate Data",
     disabled=not required_files,
     type="primary"
 )
@@ -222,7 +223,10 @@ if process_button and required_files:
                 event_log = st.session_state.event_log
             else:
                 event_log = EventLog()
-                event_log.load_log("./events_log.json")
+            # if event_pdf and event_name:
+
+
+
             eda_analyzer = EDAFeatures(
                 gen_df=crud.gen_df,
                 spec_df=crud.spec_df,

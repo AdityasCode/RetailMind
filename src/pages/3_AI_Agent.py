@@ -70,6 +70,7 @@ with st.sidebar:
 
 def display_response_with_images(response_text):
     """Display response text and any embedded chart references"""
+    response_text = response_text.replace("$", "\$").replace(" 00:00:00", "")
     st.markdown(response_text)
 
     chart_patterns = [
