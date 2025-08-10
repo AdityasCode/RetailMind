@@ -42,7 +42,8 @@ class RetailAgent:
             eda_obj.department_analysis_holiday_tool,
             eda_obj.department_analysis_no_holiday_tool,
             eda_obj.analyze_economic_headwinds_tool,
-            eda_obj.analyze_event_impact_tool
+            eda_obj.analyze_event_impact_tool,
+            eda_obj.forecast_sales_tool
         ]
 
         prompt = hub.pull("hwchase17/openai-tools-agent")
