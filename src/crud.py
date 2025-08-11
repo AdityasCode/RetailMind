@@ -13,7 +13,7 @@ class CRUD:
         self.gen_df: pd.DataFrame = pd.DataFrame()
         self.spec_df: pd.DataFrame = pd.DataFrame()
         self.daily_df: pd.DataFrame = pd.DataFrame()
-        self.storeIDs: List[int] = storeIDs
+        self.storeIDs: List[int] = [(i > 0 and i < 46) for i in storeIDs]
         self.add_sales_data(sales_path)
         self.add_external_factors(features_path)
         if daily_path and os.path.exists(daily_path):

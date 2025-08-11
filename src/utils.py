@@ -5,7 +5,7 @@ from typing import Tuple, List, Any
 import fitz
 import pandas as pd
 
-default_storeIDs: List[int] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+default_storeIDs: List[int] = [i for i in range(1, 46)]
 
 def print_stderr(text) -> None:
     """

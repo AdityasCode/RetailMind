@@ -8,7 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from src.crud import CRUD, EventLog, Event
 from src.eda import EDAFeatures
 from src.agent import RetailAgent
-from src.utils import parse_pdf
+from src.utils import parse_pdf, default_storeIDs
 
 st.set_page_config(page_title="Data Hub - RetailMind", layout="wide")
 
