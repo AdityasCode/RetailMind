@@ -65,7 +65,7 @@ with tab1:
     with col2:
         st.subheader("Key Metrics")
         try:
-            gen_df = eda_analyzer.get_gen_df()
+            gen_df = eda_analyzer.gen_df
             total_sales = gen_df['Weekly_Sales'].sum()
             avg_weekly_sales = gen_df['Weekly_Sales'].mean()
             total_weeks = len(gen_df['Date'].unique())
@@ -75,6 +75,7 @@ with tab1:
             st.metric("Avg Weekly Sales", f"${avg_weekly_sales:,.0f}")
             st.metric("Analysis Period", f"{total_weeks} weeks")
             st.metric("Stores Analyzed", stores_count)
+            st.text("Store IDs: " + f"{gen_df['Store'].unique()}")
         except Exception as e:
             st.error(f"Error calculating metrics: {str(e)}")
 

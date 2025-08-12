@@ -9,7 +9,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from langchain_core.tools import StructuredTool
 from src.crud import EventLog
-from src.utils import sales_attribute, filter_stores, get_department_name, get_department_id
+from src.utils import sales_attribute, filter_stores, get_department_name, get_department_id, default_storeIDs
 from src.utils import print_stderr
 from pathlib import Path
 
@@ -18,7 +18,7 @@ class EDAFeatures:
     EDA Features to analyze data.
     """
     def __init__(self, gen_df: pd.DataFrame, spec_df: pd.DataFrame, event_log: EventLog, predictor: TimeSeriesPredictor,
-                 daily_df: pd.DataFrame = None, storeIDs: List[int] = None):
+                 daily_df: pd.DataFrame = None, storeIDs: List[int] = default_storeIDs):
         """
         Initializes the toolkit with dataframes. Gen df and spec df must have the given columns respectively, case-sensitive:
         Store | Dept | Date | Weekly_Sales | IsHoliday
@@ -33,12 +33,13 @@ class EDAFeatures:
 
         # Filtering gen and spec DFs
 
-        self.set_gen_df(filter_stores(self.get_gen_df(), storeIDs))
-        self.set_spec_df(filter_stores(self.get_spec_df(), storeIDs))
+        self.gen_df = filter_stores(self.gen_df, storeIDs)
+        self.spec_df = filter_stores(self.get_spec_df(), storeIDs)
         self.spec_df['Date'] = pd.to_datetime(self.spec_df['Date'])
         self.spec_df.sort_values('Date', inplace=True)
         self.spec_df.drop_duplicates(subset=['Date'], inplace=True)
         self.spec_df = self.spec_df.set_index('Date')
+        # store col can be dropped from spec_df
         print_stderr("Received from parse_sales_csv, gen & spec, filtered:")
         gen_df, spec_df = self.gen_df, self.spec_df
         print_stderr(gen_df)
@@ -480,7 +481,8 @@ class EDAFeatures:
             fig = predictor.plot(
                 train_data,
                 predictions,
-                max_history_length=150
+                max_history_length=150,
+                item_ids=[1]
             )
             fig.savefig(chart_path)
         pred_df = predictions.reset_index()

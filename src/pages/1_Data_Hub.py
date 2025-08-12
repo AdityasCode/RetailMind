@@ -77,7 +77,7 @@ with col2:
     store_ids_input = st.text_input(
         "Store IDs (Optional)",
         placeholder="e.g., 1,2,3,4,5 or leave empty for all stores",
-        help="Comma-separated list of store IDs to analyze. Leave empty to include all stores."
+        help="Comma-separated list of store IDs to analyze. Leave empty to include all stores.",
     )
 
 # Event upload section
@@ -168,6 +168,8 @@ if store_ids_input.strip():
         st.info(f"Will analyze stores: {store_ids}")
     except ValueError:
         st.error("Invalid store IDs format. Please use comma-separated integers.")
+else:
+    store_ids = default_storeIDs
 
 required_files = train_file is not None and features_file is not None
 if not required_files:
@@ -233,7 +235,7 @@ if process_button and required_files:
                 event_log=event_log,
                 daily_df=crud.daily_df,
                 storeIDs=crud.storeIDs,
-                predictor=TimeSeriesPredictor.load("autogluon-m4-hourly")
+                predictor=TimeSeriesPredictor.load("models/autogluon-m4-hourly")
             )
             agent = RetailAgent(crud_obj=crud, eda_obj=eda_analyzer)
 

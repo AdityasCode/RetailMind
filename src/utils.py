@@ -1,6 +1,6 @@
 from datetime import timedelta
 from sys import stderr
-from typing import Tuple, List, Any
+from typing import Tuple, List
 
 import fitz
 import pandas as pd
@@ -22,6 +22,7 @@ def sales_attribute(isDaily: bool) -> Tuple[str, str]:
 
 
 def filter_stores(df: pd.DataFrame, storeID: List[int]) -> pd.DataFrame:
+    print_stderr(f"filtering stores {storeID}")
     if storeID:
         valid_stores = [s for s in storeID if 1 <= s <= 45]
         if valid_stores:
