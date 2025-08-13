@@ -98,3 +98,50 @@
 # # crudder = crud.CRUD()
 # # stderr_print(crudder.gen_df)
 # # stderr_print(crudder.spec_df)
+
+
+"""
+---------
+model training code -- for posterity
+#%%
+import pandas as pd
+from crud import parse_sales_csv
+from autogluon.timeseries import TimeSeriesDataFrame, TimeSeriesPredictor
+df, other = parse_sales_csv("test_data/train.csv")
+#%%
+store_id = 1
+import os
+os.environ['DYLD_LIBRARY_PATH'] = '/usr/local/Cellar/libomp/'
+store_df = df[df['Store'] == store_id][['Date', 'Weekly_Sales']].copy()
+#%%
+train_data = TimeSeriesDataFrame.from_data_frame(
+df,
+id_column="Store",
+timestamp_column="Date"
+)
+train_data.head()
+#%%
+predictor = TimeSeriesPredictor(
+prediction_length=48,
+freq='W-FRI',
+path="autogluon-m4-hourly",
+target="Weekly_Sales",
+eval_metric="MASE",
+)
+
+predictor.fit(
+train_data,
+presets="medium_quality",
+time_limit=600,
+)
+#%%
+predictions = predictor.predict(train_data)
+predictions.head()
+#%%
+import matplotlib.pyplot as plt
+
+test_data = train_data
+
+# Plot 4 randomly chosen time series and the respective forecasts
+predictor.plot(test_data, predictions, quantile_levels=[0.1, 0.9], max_history_length=200, max_num_item_ids=4);
+"""

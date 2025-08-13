@@ -34,7 +34,7 @@ class EDAFeatures:
         # Filtering gen and spec DFs
 
         self.gen_df = filter_stores(self.gen_df, storeIDs)
-        self.spec_df = filter_stores(self.get_spec_df(), storeIDs)
+        self.spec_df = filter_stores(self.spec_df, storeIDs)
         self.spec_df['Date'] = pd.to_datetime(self.spec_df['Date'])
         self.spec_df.sort_values('Date', inplace=True)
         self.spec_df.drop_duplicates(subset=['Date'], inplace=True)
@@ -46,7 +46,7 @@ class EDAFeatures:
         print_stderr(spec_df)
         self.pred_df: pd.DataFrame = pd.DataFrame()
 
-        self.output_dir = Path("charts")
+        self.output_dir = Path("../charts")
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         self.sales_t_tool = StructuredTool.from_function(
@@ -110,15 +110,15 @@ class EDAFeatures:
         if self.storeIDs: result += f"These statistics are only for Store(s) {self.storeIDs}."
         return result
 
-    def sales_t(self, isDaily: bool = False) -> str:
+    def sales_t(self) -> str:
         """
         Generates a graph for sales vs. time.
         :return: summary with full file path for chart display.
         """
-        attrUse, colUse = sales_attribute(isDaily)
+        attrUse, colUse = sales_attribute(isDaily=False)
         print_stderr("generating sales graph. gen_df:")
-        print_stderr(self.get_gen_df())
-        targetDf: pd.DataFrame = self.get_gen_df() if not isDaily else self.daily_df
+        print_stderr(self.gen_df)
+        targetDf: pd.DataFrame = self.gen_df
         time_series = targetDf.groupby('Date', as_index=False)[colUse].sum()
         chart_path = self.output_dir / "sales.png"
         if not os.path.exists(chart_path):
@@ -144,13 +144,13 @@ class EDAFeatures:
         )
         return summary
 
-    def holiday_impact(self, isDaily: bool = False) -> str:
+    def holiday_impact(self) -> str:
         """
         Creates a box plot for the holiday impact on sales.
         :return: summary with full file path for chart display.
         """
-        attrUse, colUse = sales_attribute(isDaily)
-        targetDf: pd.DataFrame = self.get_gen_df() if not isDaily else self.daily_df
+        attrUse, colUse = sales_attribute(isDaily=False)
+        targetDf: pd.DataFrame = self.gen_df
 
         chart_path = self.output_dir / "holiday.png"
         print_stderr("generating holiday impact box plot")
@@ -174,15 +174,14 @@ class EDAFeatures:
         )
         return summary
 
-    def top_performing_stores(self, top_n: int = 5, isDaily: bool = False) -> str:
+    def top_performing_stores(self, top_n: int = 5) -> str:
         """
         Analyzes the top performing stores in the given data.
         :param top_n: number of top performers to analyze
         :return: textual summary of top performers
         """
-        attrUse, colUse = sales_attribute(isDaily)
-        targetDf: pd.DataFrame = self.get_gen_df()
-        # targetDf: pd.DataFrame = self.get_gen_df() if not isDaily else self.daily_df
+        attrUse, colUse = sales_attribute(isDaily=False)
+        targetDf: pd.DataFrame = self.gen_df
 
         print_stderr("generating top performers bar graph")
         sales_by_store = targetDf.groupby('Store', as_index=False)[colUse].sum()
@@ -199,7 +198,7 @@ class EDAFeatures:
                 labels={'Store': 'Store ID', colUse: 'Total Sales ($)'},
                 text_auto='.2s'
             )
-            fig.write_image("./charts/top_performers.png")
+            fig.write_image(chart_path)
 
         summary = (
             f"Top performers:\n"
@@ -209,15 +208,14 @@ class EDAFeatures:
         summary += f"Chart saved to: {chart_path}"
         return summary
 
-    def department_analysis_no_holiday(self, tool_input: str = "", top_n: int = 5, isDaily: bool = False) -> str:
+    def department_analysis_no_holiday(self, top_n: int = 5) -> str:
         """
         Analyzes top performing departments over all time in given data.
-        :param tool_input: Ignored
         :param top_n: number of top performing departments to analyze
         :return: textual summary of departments
         """
-        attrUse, colUse = sales_attribute(isDaily)
-        targetDf: pd.DataFrame = self.get_gen_df() if not isDaily else self.daily_df
+        attrUse, colUse = sales_attribute(isDaily=False)
+        targetDf: pd.DataFrame = self.gen_df
 
         print(f"\n\n\n{targetDf.head()}\n\n\n")
         targetDf.loc[:, 'Dept'] = targetDf['Dept'].apply(get_department_name)
@@ -230,7 +228,7 @@ class EDAFeatures:
                 sales_by_dept.head(top_n),
                 x='Dept',
                 y=colUse,
-                title=f"Top {top_n} Performing Depts by Total Sales",
+                title=f"Top {top_n} Performing Depts by Total Sales (All Time)",
                 labels={'Dept': 'Dept ID', colUse: 'Total Sales ($)'},
                 text_auto='.2s'
             )
@@ -246,15 +244,14 @@ class EDAFeatures:
         summary += f"Chart saved to: {chart_path}"
         return summary
 
-    def department_analysis_holiday(self, top_n: int = 5, isDaily: bool = False) -> str:
+    def department_analysis_holiday(self, top_n: int = 5) -> str:
         """
         Analyzes top performing departments over only holidays in given data.
-        :param isDaily: True if currently utilizing daily data, False otherwise
         :param top_n: number of top performing departments to analyze
         :return: textual summary of top departments
         """
-        attrUse, colUse = sales_attribute(isDaily)
-        targetDf: pd.DataFrame = self.get_gen_df() if not isDaily else self.daily_df
+        attrUse, colUse = sales_attribute(isDaily=False)
+        targetDf: pd.DataFrame = self.gen_df
 
         print(f"\n\n\nDept Analysis Holiday:\n{targetDf.head()}\n\n\n")
         targetDf.loc[:, 'Dept'] = targetDf['Dept'].apply(get_department_name)
@@ -284,13 +281,12 @@ class EDAFeatures:
         summary += f"Chart saved to: {chart_path}"
         return summary
 
-    def analyze_economic_headwinds(self, isDaily: bool = False) -> str:
+    def analyze_economic_headwinds(self) -> str:
         """
         Creating a propensity score for measuring external factors against performance. Here, forecasting is avoided since
         it'll be hard to predict external factors of the market with only these paremeters. However, this may serve towards
         1. Comparing with weekly sales to examine responses to external factors
         2. Is the budget flexible enough to react to changes?
-        :param isDaily: True if currently utilizing daily data, False otherwise
         :return: textual summary of the most recent trend, 12 week trends, Y-o-Y trends, overall avg, max, min and volatility.
         """
 

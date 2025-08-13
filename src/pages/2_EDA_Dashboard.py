@@ -86,7 +86,7 @@ with tab1:
         try:
             with st.spinner("Generating forecasted sales..."):
                 sales_summary = eda_analyzer.forecast_weekly_sales()
-            display_chart_and_summary(sales_summary, "./charts/forecasted.png")
+            display_chart_and_summary(sales_summary, "../charts/forecasted.png")
         except Exception as e:
             st.error(f"Error generating sales trend: {str(e)}")
 
