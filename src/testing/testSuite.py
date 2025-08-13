@@ -1,7 +1,7 @@
 import os
-from autogluon.timeseries import TimeSeriesPredictor
 from src.crud import Event, EventLog, CRUD
 from src.eda import EDAFeatures
+from src.model_training import hierarchical_forecast_with_reconciliation
 from src.utils import print_stderr
 
 
@@ -59,21 +59,36 @@ def pred_test(edaer: EDAFeatures):
     x = edaer.forecast_weekly_sales()
     print_stderr("pred test")
     print_stderr(x)
+    print_stderr("pred_df:")
     print_stderr(edaer.pred_df)
+
+def run_hierarchical_forecast_test(gen_df):
+    """
+    Example of how to use the hierarchical forecasting function
+    """
+    forecasts, summary = hierarchical_forecast_with_reconciliation(
+        gen_df=gen_df,
+        forecast_periods=24,  # 12 weeks ahead
+        output_dir="../charts",
+    )
+
+    print_stderr(forecasts)
+    print_stderr(summary)
+    return forecasts, summary
 
 def main():
     cwd_test()
     crudder = CRUD()
-    log = logTest()
-    edaer = EDAFeatures(crudder.gen_df, crudder.spec_df, daily_df=crudder.daily_df, event_log=log, storeIDs=None, predictor=TimeSeriesPredictor.load("../autogluon-m4-hourly"))
+    # log = logTest()
+    # edaer = EDAFeatures(crudder.gen_df, crudder.spec_df, daily_df=crudder.daily_df, event_log=log, storeIDs=default_storeIDs, predictor=TimeSeriesPredictor.load("../models/autogluon-m4-hourly"))
     # retail_chatbot = RetailAgent(crudder, edaer)
     # logTest()
     # dailyCRUDTest(crudder)
     # agentTest(retail_chatbot)
     # headwinds_test(edaer)
     # top_test(edaer)
-    pred_test(edaer=edaer)
-
+    # pred_test(edaer=edaer)
+    run_hierarchical_forecast_test(crudder.gen_df)
 
 if __name__ == "__main__":
     main()
