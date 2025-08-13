@@ -1,5 +1,5 @@
 import os.path
-from typing import List
+from typing import List, Tuple
 import pandas as pd
 import plotly.express as px
 import seaborn as sns
@@ -9,6 +9,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from langchain_core.tools import StructuredTool
 from src.crud import EventLog
+from src.model_training import hierarchical_forecast_with_reconciliation
 from src.utils import sales_attribute, filter_stores, get_department_name, get_department_id, default_storeIDs
 from src.utils import print_stderr
 from pathlib import Path
@@ -17,7 +18,7 @@ class EDAFeatures:
     """
     EDA Features to analyze data.
     """
-    def __init__(self, gen_df: pd.DataFrame, spec_df: pd.DataFrame, event_log: EventLog, predictor: TimeSeriesPredictor,
+    def __init__(self, gen_df: pd.DataFrame, spec_df: pd.DataFrame, event_log: EventLog, predictor: TimeSeriesPredictor | None,
                  daily_df: pd.DataFrame = None, storeIDs: List[int] = default_storeIDs):
         """
         Initializes the toolkit with dataframes. Gen df and spec df must have the given columns respectively, case-sensitive:
@@ -461,51 +462,75 @@ class EDAFeatures:
                 f"- Average weekly sales during the event were ${avg_event_sales:,.2f}.\n"
                 f"- This represents a {percentage_change:+.1f}% change compared to the 4-week baseline average of ${avg_baseline_sales:,.2f}.")
 
-    def _generate_predictions(self) -> pd.DataFrame:
+    # def _generate_predictions(self) -> pd.DataFrame:
+    #     targetDf = self.gen_df
+    #     targetDf.loc[:, 'Dept'] = targetDf['Dept'].apply(get_department_id)
+    #     train_data = TimeSeriesDataFrame.from_data_frame(
+    #         targetDf,
+    #         id_column="Store",
+    #         timestamp_column="Date"
+    #     )
+    #
+    #     predictor = self.predictor
+    #     predictions = predictor.predict(train_data)
+    #     chart_path = self.output_dir / "forecasted.png"
+    #     if not os.path.exists(chart_path):
+    #         fig = predictor.plot(
+    #             train_data,
+    #             predictions,
+    #             max_history_length=150,
+    #             item_ids=[1]
+    #         )
+    #         fig.savefig(chart_path)
+    #     pred_df = predictions.reset_index()
+    #     pred_df.rename(columns={"item_id": "Store", "timestamp": "Date", "mean": "Weekly_Sales"}, inplace=True)
+    #     pred_df["Weekly_Sales"] = pred_df["Weekly_Sales"].apply(lambda x: round(x, 2))
+    #
+    #     self.forecast_plot_path = chart_path
+    #     self.forecast_df = pred_df
+    #
+    #     return pred_df
+    #
+    # def forecast_weekly_sales(self, num_weeks: int = 12) -> str:
+    #     """
+    #     Generates a sales forecast for a specified number of future weeks.
+    #     Runs a predictive model and returns a summary of the forecast.
+    #     """
+    #     pred_df = self._generate_predictions()
+    #     self.pred_df = pred_df[['Store', 'Date', 'Weekly_Sales']].copy()
+    #     forecast_period = pred_df.head(num_weeks)
+    #     avg_predicted_sales = forecast_period['Weekly_Sales'].mean()
+    #     peak_sales_date = forecast_period.loc[forecast_period['Weekly_Sales'].idxmax()]['Date'].date()
+    #     peak_sales_value = forecast_period['Weekly_Sales'].max()
+    #     chart_path = self.output_dir / "forecasted.png"
+    #     summary = (
+    #         f"Sales forecast for the next {num_weeks} weeks generated successfully.\n"
+    #         f"- The average predicted weekly sales are ${avg_predicted_sales:,.2f}.\n"
+    #         f"- The forecast peaks at ${peak_sales_value:,.2f} on {peak_sales_date}.\n"
+    #         f"- Chart saved to {chart_path}"
+    #     )
+    #     return summary
+    def _generate_predictions(self, num_weeks: int = 12) -> Tuple[pd.DataFrame, str]:
         targetDf = self.gen_df
         targetDf.loc[:, 'Dept'] = targetDf['Dept'].apply(get_department_id)
-        train_data = TimeSeriesDataFrame.from_data_frame(
-            targetDf,
-            id_column="Store",
-            timestamp_column="Date"
-        )
-
-        predictor = self.predictor
-        predictions = predictor.predict(train_data)
-        chart_path = self.output_dir / "forecasted.png"
-        if not os.path.exists(chart_path):
-            fig = predictor.plot(
-                train_data,
-                predictions,
-                max_history_length=150,
-                item_ids=[1]
-            )
-            fig.savefig(chart_path)
-        pred_df = predictions.reset_index()
+        forecast_df, summary = hierarchical_forecast_with_reconciliation(gen_df=targetDf, forecast_periods=num_weeks)
+        pred_df = forecast_df.reset_index()
         pred_df.rename(columns={"item_id": "Store", "timestamp": "Date", "mean": "Weekly_Sales"}, inplace=True)
         pred_df["Weekly_Sales"] = pred_df["Weekly_Sales"].apply(lambda x: round(x, 2))
 
-        self.forecast_plot_path = chart_path
+        self.forecast_plot_path = self.output_dir / "forecasted.png"
         self.forecast_df = pred_df
 
-        return pred_df
+        return pred_df, summary
 
     def forecast_weekly_sales(self, num_weeks: int = 12) -> str:
         """
         Generates a sales forecast for a specified number of future weeks.
         Runs a predictive model and returns a summary of the forecast.
         """
-        pred_df = self._generate_predictions()
-        self.pred_df = pred_df[['Store', 'Date', 'Weekly_Sales']].copy()
-        forecast_period = pred_df.head(num_weeks)
-        avg_predicted_sales = forecast_period['Weekly_Sales'].mean()
-        peak_sales_date = forecast_period.loc[forecast_period['Weekly_Sales'].idxmax()]['Date'].date()
-        peak_sales_value = forecast_period['Weekly_Sales'].max()
-        chart_path = self.output_dir / "forecasted.png"
-        summary = (
-            f"Sales forecast for the next {num_weeks} weeks generated successfully.\n"
-            f"- The average predicted weekly sales are ${avg_predicted_sales:,.2f}.\n"
-            f"- The forecast peaks at ${peak_sales_value:,.2f} on {peak_sales_date}.\n"
-            f"- Chart saved to {chart_path}"
-        )
+        pred_df, summary = self._generate_predictions(num_weeks=num_weeks)
+        self.pred_df = pred_df[['Date', 'Store', 'Dept', 'Weekly_Sales']].copy()
+        store_is_numeric = pd.to_numeric(self.pred_df['Store'], errors='coerce').notna()
+        dept_is_numeric = pd.to_numeric(self.pred_df['Dept'], errors='coerce').notna()
+        self.pred_df = self.pred_df[store_is_numeric & dept_is_numeric].copy()
         return summary

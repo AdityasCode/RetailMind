@@ -12,4 +12,6 @@
 /charts/propensity.png
 /charts/sales.png
 /charts/top_performers.png
+/charts/*
+./charts/*
 *.png
