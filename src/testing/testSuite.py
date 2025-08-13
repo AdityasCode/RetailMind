@@ -4,7 +4,7 @@ from src.crud import Event, EventLog, CRUD
 from src.eda import EDAFeatures
 from src.model_training import hierarchical_forecast_with_reconciliation
 from src.testing.generate_daily_csv import check
-from src.utils import print_stderr, default_storeIDs
+from src.utils import print_stderr, default_storeIDs, parse_pdf
 
 # ideally should be an ipynb but directory mapping is a significantly bigger issue
 
@@ -79,12 +79,15 @@ def run_hierarchical_forecast_test(edaer: EDAFeatures):
 def sales_test(edaer: EDAFeatures):
     print_stderr(edaer.sales_t())
 
+def pdf_test():
+    print_stderr(parse_pdf("../test_data/InvChanges.pdf"))
+
 def main():
     cwd_test()
     # check()
-    crudder = CRUD()
-    log = logTest()
-    edaer = EDAFeatures(crudder.gen_df, crudder.spec_df, daily_df=crudder.daily_df, event_log=log, storeIDs=default_storeIDs, predictor=TimeSeriesPredictor.load("../models/autogluon-m4-hourly"))
+    # crudder = CRUD()
+    # log = logTest()
+    # edaer = EDAFeatures(crudder.gen_df, crudder.spec_df, daily_df=crudder.daily_df, event_log=log, storeIDs=default_storeIDs, predictor=TimeSeriesPredictor.load("../models/autogluon-m4-hourly"))
     # edaer = EDAFeatures(crudder.gen_df, crudder.spec_df, daily_df=crudder.daily_df, event_log=log, storeIDs=default_storeIDs, predictor=None)
     # retail_chatbot = RetailAgent(crudder, edaer)
     # logTest()
@@ -93,8 +96,9 @@ def main():
     # headwinds_test(edaer)
     # top_test(edaer)
     # pred_test(edaer=edaer)
-    run_hierarchical_forecast_test(edaer)
+    # run_hierarchical_forecast_test(edaer)
     # sales_test(edaer)
+    # pdf_test()
 
 
 if __name__ == "__main__":

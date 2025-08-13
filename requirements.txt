@@ -247,9 +247,9 @@ pydantic_core==2.33.2
 pydeck==0.9.1
 pydot==4.0.1
 Pygments==2.19.2
-PyMuPDF==1.26.3
 pyod==2.0.5
 pyparsing==3.2.3
+pypdf==6.0.0
 PySocks==1.7.1
 pytesseract==0.3.13
 python-dateutil==2.9.0.post0

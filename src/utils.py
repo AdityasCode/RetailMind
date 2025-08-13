@@ -1,8 +1,7 @@
 from datetime import timedelta
 from sys import stderr
 from typing import Tuple, List
-
-import fitz
+from pypdf import PdfReader
 import pandas as pd
 
 default_storeIDs: List[int] = [i for i in range(1, 46)]
@@ -74,12 +73,17 @@ def _week_start(first_dt: pd.Timestamp, dt: pd.Timestamp) -> pd.Timestamp:
     return first_dt + timedelta(days=week_number * 7)
 
 def parse_pdf(path: str) -> str:
-    doc = fitz.open(path)
+    reader = PdfReader(path)
     text = ""
-    for page in doc:
-        text += page.get_text()
-    return text
+    for page in reader.pages:
+        text += page.extract_text() or ""
 
+    # token optimization!
+
+    filtered_text = text.replace("\n", " ").replace("\r", " ") \
+        .replace("  ", " ").replace("  ", " ") \
+    .replace("a ", "").replace("the ", "")
+    return filtered_text
 
 department_names = [
     "Electronics", "Home Goods", "Apparel", "Groceries", "Pharmacy", "Automotive",
