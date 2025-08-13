@@ -83,7 +83,6 @@ fastjsonschema==2.21.1
 fastprogress==1.0.3
 fasttransform==0.0.2
 filelock==3.18.0
-fitz==0.0.1.dev2
 Flask==3.0.3
 fonttools==4.58.4
 fqdn==1.5.1
