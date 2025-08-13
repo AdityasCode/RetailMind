@@ -4,3 +4,12 @@
 *.ipynb
 .idea
 .idea/*
+/charts/departments.png
+/charts/departments_hol.png
+/charts/forecasted.png
+/charts/hierarchical_forecast_analysis.png
+/charts/holiday.png
+/charts/propensity.png
+/charts/sales.png
+/charts/top_performers.png
+*.png
