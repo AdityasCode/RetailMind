@@ -10,7 +10,8 @@ from sklearn.decomposition import PCA
 from langchain_core.tools import StructuredTool
 from src.crud import EventLog
 from src.model_training import hierarchical_forecast_with_reconciliation
-from src.utils import sales_attribute, filter_stores, get_department_name, get_department_id, default_storeIDs
+from src.utils import sales_attribute, filter_stores, get_department_name, get_department_id, default_storeIDs, \
+    clear_folder_contents
 from src.utils import print_stderr
 from pathlib import Path
 
@@ -18,8 +19,9 @@ class EDAFeatures:
     """
     EDA Features to analyze data.
     """
-    def __init__(self, gen_df: pd.DataFrame, spec_df: pd.DataFrame, event_log: EventLog, predictor: TimeSeriesPredictor | None,
-                 daily_df: pd.DataFrame = None, storeIDs: List[int] = default_storeIDs):
+    def __init__(self, gen_df: pd.DataFrame, spec_df: pd.DataFrame, event_log: EventLog | None,
+                 predictor: TimeSeriesPredictor | None, daily_df: pd.DataFrame = None,
+                 storeIDs: List[int] = default_storeIDs):
         """
         Initializes the toolkit with dataframes. Gen df and spec df must have the given columns respectively, case-sensitive:
         Store | Dept | Date | Weekly_Sales | IsHoliday
@@ -48,6 +50,7 @@ class EDAFeatures:
         self.pred_df: pd.DataFrame = pd.DataFrame()
 
         self.output_dir = Path("../charts")
+        clear_folder_contents(self.output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         self.sales_t_tool = StructuredTool.from_function(

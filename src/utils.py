@@ -1,6 +1,9 @@
+import os
 from datetime import timedelta
 from sys import stderr
 from typing import Tuple, List
+
+from pathlib import Path
 from pypdf import PdfReader
 import pandas as pd
 
@@ -33,6 +36,26 @@ def filter_stores(df: pd.DataFrame, storeID: List[int]) -> pd.DataFrame:
     return df
 
 def get_department_id(dept_name) -> int:
+    department_names = [
+        "Electronics", "Home Goods", "Apparel", "Groceries", "Pharmacy", "Automotive",
+        "Sporting Goods", "Toys", "Garden Center", "Jewelry", "Books & Media", "Health & Beauty",
+        "Pets", "Hardware", "Crafts", "Party Supplies", "Stationery", "Seasonal",
+        "Bakery", "Deli", "Produce", "Meat & Seafood", "Dairy & Frozen", "Snacks & Drinks",
+        "Baby Products", "Personal Care", "Household Ess.", "Cleaning Supplies", "Paper Goods",
+        "Floral", "Footwear", "Luggage", "Outdoor Living", "Camping Gear", "Fishing Gear",
+        "Hunting Gear", "Fitness Equip.", "Team Sports", "Video Games", "Movies & TV",
+        "Music", "Computers", "Cell Phones", "Tablets", "Wearable Tech", "TVs",
+        "Audio Equip.", "Cameras", "Office Furn.", "School Supplies", "Art Supplies",
+        "Fabric", "Sewing Notions", "Yarn & Needlework", "Scrapbooking", "Gift Cards",
+        "Gift Wrap", "Balloons", "Greeting Cards", "Candles", "Home Decor", "Kitchenware",
+        "Bedding", "Bath", "Storage Org.", "Lighting", "Small App.", "Large App.",
+        "Tires", "Auto Parts", "Motor Oil", "Car Care", "Tools", "Power Tools",
+        "Hand Tools", "Hardware Acc.", "Plumbing", "Electrical", "Paint", "Flooring",
+        "Building Mats.", "Lawn Care", "Pest Control", "Pool & Spa", "Patio Furn.",
+        "Grills", "Bird Food", "Pet Food", "Pet Toys", "Pet Beds", "Fish & Aquatics",
+        "Reptile Supp.", "Small Anim. Supp.", "Hunting Lic.", "Fishing Lic.", "Career Services",
+        "Eye Clinic", "Soda"
+    ]
     if dept_name:
         if type(dept_name) == int: return dept_name
         try:
@@ -49,7 +72,27 @@ def get_department_name(dept_id) -> str:
     :param dept_id: id of the department, as-is
     :return: dept name
     """
-    if (type(dept_id) == str): return dept_id
+    department_names = [
+        "Electronics", "Home Goods", "Apparel", "Groceries", "Pharmacy", "Automotive",
+        "Sporting Goods", "Toys", "Garden Center", "Jewelry", "Books & Media", "Health & Beauty",
+        "Pets", "Hardware", "Crafts", "Party Supplies", "Stationery", "Seasonal",
+        "Bakery", "Deli", "Produce", "Meat & Seafood", "Dairy & Frozen", "Snacks & Drinks",
+        "Baby Products", "Personal Care", "Household Ess.", "Cleaning Supplies", "Paper Goods",
+        "Floral", "Footwear", "Luggage", "Outdoor Living", "Camping Gear", "Fishing Gear",
+        "Hunting Gear", "Fitness Equip.", "Team Sports", "Video Games", "Movies & TV",
+        "Music", "Computers", "Cell Phones", "Tablets", "Wearable Tech", "TVs",
+        "Audio Equip.", "Cameras", "Office Furn.", "School Supplies", "Art Supplies",
+        "Fabric", "Sewing Notions", "Yarn & Needlework", "Scrapbooking", "Gift Cards",
+        "Gift Wrap", "Balloons", "Greeting Cards", "Candles", "Home Decor", "Kitchenware",
+        "Bedding", "Bath", "Storage Org.", "Lighting", "Small App.", "Large App.",
+        "Tires", "Auto Parts", "Motor Oil", "Car Care", "Tools", "Power Tools",
+        "Hand Tools", "Hardware Acc.", "Plumbing", "Electrical", "Paint", "Flooring",
+        "Building Mats.", "Lawn Care", "Pest Control", "Pool & Spa", "Patio Furn.",
+        "Grills", "Bird Food", "Pet Food", "Pet Toys", "Pet Beds", "Fish & Aquatics",
+        "Reptile Supp.", "Small Anim. Supp.", "Hunting Lic.", "Fishing Lic.", "Career Services",
+        "Eye Clinic", "Soda"
+    ]
+    if type(dept_id) == str: return dept_id
     if pd.isna(dept_id):
         return 'Unknown Dept'
     index = int(dept_id) - 1
@@ -85,23 +128,12 @@ def parse_pdf(path: str) -> str:
     .replace("a ", "").replace("the ", "")
     return filtered_text
 
-department_names = [
-    "Electronics", "Home Goods", "Apparel", "Groceries", "Pharmacy", "Automotive",
-    "Sporting Goods", "Toys", "Garden Center", "Jewelry", "Books & Media", "Health & Beauty",
-    "Pets", "Hardware", "Crafts", "Party Supplies", "Stationery", "Seasonal",
-    "Bakery", "Deli", "Produce", "Meat & Seafood", "Dairy & Frozen", "Snacks & Drinks",
-    "Baby Products", "Personal Care", "Household Ess.", "Cleaning Supplies", "Paper Goods",
-    "Floral", "Footwear", "Luggage", "Outdoor Living", "Camping Gear", "Fishing Gear",
-    "Hunting Gear", "Fitness Equip.", "Team Sports", "Video Games", "Movies & TV",
-    "Music", "Computers", "Cell Phones", "Tablets", "Wearable Tech", "TVs",
-    "Audio Equip.", "Cameras", "Office Furn.", "School Supplies", "Art Supplies",
-    "Fabric", "Sewing Notions", "Yarn & Needlework", "Scrapbooking", "Gift Cards",
-    "Gift Wrap", "Balloons", "Greeting Cards", "Candles", "Home Decor", "Kitchenware",
-    "Bedding", "Bath", "Storage Org.", "Lighting", "Small App.", "Large App.",
-    "Tires", "Auto Parts", "Motor Oil", "Car Care", "Tools", "Power Tools",
-    "Hand Tools", "Hardware Acc.", "Plumbing", "Electrical", "Paint", "Flooring",
-    "Building Mats.", "Lawn Care", "Pest Control", "Pool & Spa", "Patio Furn.",
-    "Grills", "Bird Food", "Pet Food", "Pet Toys", "Pet Beds", "Fish & Aquatics",
-    "Reptile Supp.", "Small Anim. Supp.", "Hunting Lic.", "Fishing Lic.", "Career Services",
-    "Eye Clinic", "Soda"
-]
+def clear_folder_contents(folder_path: Path):
+    try:
+        for filename in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        print_stderr(f"folder contents cleared: {folder_path}")
+    except Exception as e:
+        print(f"error clearing files in '{folder_path}': {e}")

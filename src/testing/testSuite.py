@@ -85,10 +85,12 @@ def pdf_test():
 def main():
     cwd_test()
     # check()
-    # crudder = CRUD()
+    crudder = CRUD()
     # log = logTest()
-    # edaer = EDAFeatures(crudder.gen_df, crudder.spec_df, daily_df=crudder.daily_df, event_log=log, storeIDs=default_storeIDs, predictor=TimeSeriesPredictor.load("../models/autogluon-m4-hourly"))
-    # edaer = EDAFeatures(crudder.gen_df, crudder.spec_df, daily_df=crudder.daily_df, event_log=log, storeIDs=default_storeIDs, predictor=None)
+    # edaer = EDAFeatures(crudder.gen_df, crudder.spec_df, daily_df=crudder.daily_df, event_log=log,
+    # storeIDs=default_storeIDs, predictor=TimeSeriesPredictor.load("../models/autogluon-m4-hourly"))
+    # edaer = EDAFeatures(crudder.gen_df, crudder.spec_df, daily_df=crudder.daily_df,
+    #                     event_log=None, storeIDs=default_storeIDs, predictor=None)
     # retail_chatbot = RetailAgent(crudder, edaer)
     # logTest()
     # dailyCRUDTest(crudder)
