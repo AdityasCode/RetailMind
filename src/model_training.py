@@ -363,7 +363,7 @@ def hierarchical_forecast_with_reconciliation(
     axes[1, 1].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    chart_path = Path(output_dir) / "forecasted.png"
+    chart_path = Path(output_dir) / "forecasted_detailed.png"
     plt.savefig(chart_path, dpi=300, bbox_inches='tight')
     plt.close()
 

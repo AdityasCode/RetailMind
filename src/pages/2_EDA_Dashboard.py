@@ -162,33 +162,53 @@ with tab3:
         st.error(f"Error analyzing economic factors: {str(e)}")
 
 with tab4:
-    col3, col4 = st.columns([2, 1])
+    col_left, col_right = st.columns([3, 1])
 
-    with col3:
+    with col_left:
         st.subheader("Forecasted Sales")
         try:
-            with st.spinner("Generating forecasted sales..."):
-                sales_summary = eda_analyzer.forecast_weekly_sales()
-            display_chart_and_summary(sales_summary, "./charts/forecasted.png")
+            if 'fast_analysis_done' not in st.session_state:
+                with st.spinner("Running quick analysis..."):
+                    fast_result = eda_analyzer.forecast_weekly_sales_faster()
+                    st.session_state.fast_analysis_done = True
+                    st.session_state.fast_result = fast_result
         except Exception as e:
             st.error(f"Error generating sales trend: {str(e)}")
+        if st.session_state.get('fast_result'):
+            st.success("✅ Quick analysis complete!")
+            display_chart_and_summary(st.session_state.fast_result, "./charts/forecasted.png")
 
-    if len(eda_analyzer.pred_df) != 0:
-        with col4:
-            st.subheader("Key Metrics")
-            try:
-                gen_df = eda_analyzer.pred_df
-                total_sales = gen_df['Weekly_Sales'].sum()
-                avg_weekly_sales = gen_df['Weekly_Sales'].mean()
-                total_weeks = len(gen_df['Date'].unique())
-                stores_count = len(gen_df['Store'].unique())
+        st.markdown("---")
 
-                st.metric("Total Sales", f"${total_sales:,.0f}")
-                st.metric("Avg Weekly Sales", f"${avg_weekly_sales:,.0f}")
-                st.metric("Analysis Period", f"{total_weeks} weeks")
-                st.metric("Stores Analyzed", stores_count)
-            except Exception as e:
-                st.error(f"Error calculating metrics: {str(e)}")
+        detailed_analysis = st.button(
+            "🔍 Run Detailed Analysis (~2-3 minutes)",
+            help="More accurate but slower analysis"
+        )
+        if detailed_analysis:
+            with st.spinner("Running detailed analysis..."):
+                detailed_result = eda_analyzer.forecast_weekly_sales()
+                st.session_state.detailed_result = detailed_result
+
+        if st.session_state.get('detailed_result'):
+            st.success("✅ Detailed analysis complete!")
+            display_chart_and_summary(st.session_state.detailed_result, "./charts/forecasted_detailed.png")
+
+    with col_right:
+        st.subheader("Key Metrics")
+        try:
+            gen_df = eda_analyzer.pred_df
+            total_sales = gen_df['Weekly_Sales'].sum()
+            avg_weekly_sales = gen_df['Weekly_Sales'].mean()
+            total_weeks = len(gen_df['Date'].unique())
+            stores_count = len(gen_df['Store'].unique())
+
+            st.metric("Total Sales", f"${total_sales:,.0f}")
+            st.metric("Avg Weekly Sales", f"${avg_weekly_sales:,.0f}")
+            st.metric("Analysis Period", f"{total_weeks} weeks")
+            st.metric("Stores Analyzed", stores_count)
+        except Exception as e:
+            st.error(f"Error calculating metrics: {str(e)}")
+
 
 st.markdown("---")
 st.header("Executive Summary")
@@ -197,9 +217,9 @@ try:
     with st.spinner("Generating executive summary..."):
         gen_df = eda_analyzer.get_gen_df()
 
-        col1, col2, col3 = st.columns(3)
+        col6, col7, col8 = st.columns(3)
 
-        with col1:
+        with col6:
             st.subheader("Performance Highlights")
             peak_sales = gen_df.groupby('Date')['Weekly_Sales'].sum().max()
             peak_date = gen_df.groupby('Date')['Weekly_Sales'].sum().idxmax()
@@ -210,7 +230,7 @@ try:
             total_sales = gen_df['Weekly_Sales'].sum()
             st.write(f"**Total Sales:** ${total_sales:,.0f}")
 
-        with col2:
+        with col7:
             st.subheader("Store Insights")
             if len(eda_analyzer.storeIDs) > 1:
                 store_performance = gen_df.groupby('Store')['Weekly_Sales'].sum()
@@ -225,7 +245,7 @@ try:
             avg_store_sales = gen_df.groupby('Store')['Weekly_Sales'].sum().mean()
             st.write(f"**Avg Store Performance:** ${avg_store_sales:,.0f}")
 
-        with col3:
+        with col8:
             st.subheader("Data Coverage")
             date_range = gen_df['Date'].max() - gen_df['Date'].min()
             unique_weeks = len(gen_df['Date'].unique())

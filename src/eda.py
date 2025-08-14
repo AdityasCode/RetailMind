@@ -91,7 +91,12 @@ class EDAFeatures:
         self.forecast_sales_tool = StructuredTool.from_function(
             func=self.forecast_weekly_sales,
             name="forecast_weekly_sales",
-            description="Generates a sales forecast for a specified number of future weeks."
+            description="Generates a sales forecast for a specified number of future weeks. The result is cached permanently."
+        )
+        self.forecast_sales_faster_tool = StructuredTool.from_function(
+            func=self.forecast_weekly_sales_faster,
+            name="forecast_weekly_sales_faster",
+            description="Generates a less accurate, faster sales forecast for a specified number of future weeks."
         )
 
         self.forecast_summary: str = ""
@@ -441,6 +446,7 @@ class EDAFeatures:
             return f"I could not find any event in my log related to '{event_query}'."
 
         # Define the event period and a baseline period for comparison
+
         event_period_df = self.gen_df[
             (self.gen_df['Date'] >= event.start_date) & (self.gen_df['Date'] <= event.end_date)
             ]
@@ -467,54 +473,55 @@ class EDAFeatures:
                 f"- Average weekly sales during the event were ${avg_event_sales:,.2f}.\n"
                 f"- This represents a {percentage_change:+.1f}% change compared to the 4-week baseline average of ${avg_baseline_sales:,.2f}.")
 
-    # def _generate_predictions(self) -> pd.DataFrame:
-    #     targetDf = self.gen_df
-    #     targetDf.loc[:, 'Dept'] = targetDf['Dept'].apply(get_department_id)
-    #     train_data = TimeSeriesDataFrame.from_data_frame(
-    #         targetDf,
-    #         id_column="Store",
-    #         timestamp_column="Date"
-    #     )
-    #
-    #     predictor = self.predictor
-    #     predictions = predictor.predict(train_data)
-    #     chart_path = self.output_dir / "forecasted.png"
-    #     if not os.path.exists(chart_path):
-    #         fig = predictor.plot(
-    #             train_data,
-    #             predictions,
-    #             max_history_length=150,
-    #             item_ids=[1]
-    #         )
-    #         fig.savefig(chart_path)
-    #     pred_df = predictions.reset_index()
-    #     pred_df.rename(columns={"item_id": "Store", "timestamp": "Date", "mean": "Weekly_Sales"}, inplace=True)
-    #     pred_df["Weekly_Sales"] = pred_df["Weekly_Sales"].apply(lambda x: round(x, 2))
-    #
-    #     self.forecast_plot_path = chart_path
-    #     self.forecast_df = pred_df
-    #
-    #     return pred_df
-    #
-    # def forecast_weekly_sales(self, num_weeks: int = 12) -> str:
-    #     """
-    #     Generates a sales forecast for a specified number of future weeks.
-    #     Runs a predictive model and returns a summary of the forecast.
-    #     """
-    #     pred_df = self._generate_predictions()
-    #     self.pred_df = pred_df[['Store', 'Date', 'Weekly_Sales']].copy()
-    #     forecast_period = pred_df.head(num_weeks)
-    #     avg_predicted_sales = forecast_period['Weekly_Sales'].mean()
-    #     peak_sales_date = forecast_period.loc[forecast_period['Weekly_Sales'].idxmax()]['Date'].date()
-    #     peak_sales_value = forecast_period['Weekly_Sales'].max()
-    #     chart_path = self.output_dir / "forecasted.png"
-    #     summary = (
-    #         f"Sales forecast for the next {num_weeks} weeks generated successfully.\n"
-    #         f"- The average predicted weekly sales are ${avg_predicted_sales:,.2f}.\n"
-    #         f"- The forecast peaks at ${peak_sales_value:,.2f} on {peak_sales_date}.\n"
-    #         f"- Chart saved to {chart_path}"
-    #     )
-    #     return summary
+    def _generate_predictions_faster(self) -> pd.DataFrame:
+        targetDf = self.gen_df
+        targetDf.loc[:, 'Dept'] = targetDf['Dept'].apply(get_department_id)
+        train_data = TimeSeriesDataFrame.from_data_frame(
+            targetDf,
+            id_column="Store",
+            timestamp_column="Date"
+        )
+
+        predictor = self.predictor
+        predictions = predictor.predict(train_data)
+        chart_path = self.output_dir / "forecasted.png"
+        if not os.path.exists(chart_path):
+            fig = predictor.plot(
+                train_data,
+                predictions,
+                max_history_length=150,
+                item_ids=[1]
+            )
+            fig.savefig(chart_path)
+        pred_df = predictions.reset_index()
+        pred_df.rename(columns={"item_id": "Store", "timestamp": "Date", "mean": "Weekly_Sales"}, inplace=True)
+        pred_df["Weekly_Sales"] = pred_df["Weekly_Sales"].apply(lambda x: round(x, 2))
+
+        self.forecast_plot_path = chart_path
+        self.forecast_df = pred_df
+
+        return pred_df
+
+    def forecast_weekly_sales_faster(self, num_weeks: int = 12) -> str:
+        """
+        Generates a sales forecast for a specified number of future weeks.
+        Runs a predictive model and returns a summary of the forecast.
+        """
+        pred_df = self._generate_predictions_faster()
+        self.pred_df = pred_df[['Date', 'Store', 'Weekly_Sales']].copy()
+        forecast_period = pred_df.head(num_weeks)
+        avg_predicted_sales = forecast_period['Weekly_Sales'].mean()
+        peak_sales_date = forecast_period.loc[forecast_period['Weekly_Sales'].idxmax()]['Date'].date()
+        peak_sales_value = forecast_period['Weekly_Sales'].max()
+        chart_path = self.output_dir / "forecasted.png"
+        summary = (
+            f"Brief sales forecast for the next {num_weeks} weeks generated successfully.\n"
+            f"- The average predicted weekly sales are ${avg_predicted_sales:,.2f}.\n"
+            f"- The forecast peaks at ${peak_sales_value:,.2f} on {peak_sales_date}.\n"
+            f"- Chart saved to {chart_path}"
+        )
+        return summary
+
     def _generate_predictions(self, num_weeks: int = 12) -> Tuple[pd.DataFrame, str]:
         targetDf = self.gen_df
         targetDf.loc[:, 'Dept'] = targetDf['Dept'].apply(get_department_id)
@@ -523,7 +530,7 @@ class EDAFeatures:
         pred_df.rename(columns={"item_id": "Store", "timestamp": "Date", "mean": "Weekly_Sales"}, inplace=True)
         pred_df["Weekly_Sales"] = pred_df["Weekly_Sales"].apply(lambda x: round(x, 2))
 
-        self.forecast_plot_path = self.output_dir / "forecasted.png"
+        self.forecast_plot_path = self.output_dir / "forecasted_detailed.png"
         self.forecast_df = pred_df
 
         return pred_df, summary
