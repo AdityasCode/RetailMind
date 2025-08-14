@@ -49,7 +49,7 @@ class EDAFeatures:
         print_stderr(spec_df)
         self.pred_df: pd.DataFrame = pd.DataFrame()
 
-        self.output_dir = Path("../charts")
+        self.output_dir = Path("./charts")
         clear_folder_contents(self.output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 

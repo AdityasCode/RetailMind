@@ -26,7 +26,7 @@ def generate_months(n_months: int = 3):
         if day % 7 == 0:
             data = pd.DataFrame.from_records(data)
             print_stderr(data)
-            data.to_csv(f'../test_data/train_daily_{2 if day % 14 == 0 else 1}.csv', index=False, header=False)
+            data.to_csv(f'./test_data/train_daily_{2 if day % 14 == 0 else 1}.csv', index=False, header=False)
             data = []
         current_date = current_date + datetime.timedelta(days=1)
 

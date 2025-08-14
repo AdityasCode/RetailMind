@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 import numpy as np
 from prophet import Prophet
@@ -15,8 +17,8 @@ warnings.filterwarnings('ignore')
 def hierarchical_forecast_with_reconciliation(
         gen_df: pd.DataFrame,
         forecast_periods: int = 12,
-        output_dir: str = "../charts",
-        model_dir: str = "../models"
+        output_dir: str = "./charts",
+        model_dir: str = "./models"
 ) -> Tuple[pd.DataFrame, str]:
     """
     Generate hierarchical forecasts with MinT reconciliation for retail sales data.
@@ -151,6 +153,10 @@ def hierarchical_forecast_with_reconciliation(
                 except Exception as e:
                     print_stderr(f"Failed to generate forecast for {series_id}: {e}")
     else:
+        print_stderr("current path:")
+        print_stderr(os.getcwd())
+        for i in os.listdir(model_dir):
+            print_stderr(i)
         print_stderr("Training models and generating base forecasts...")
         all_data = pd.concat([
             level0_data[['series_id', 'Date', 'Weekly_Sales']],

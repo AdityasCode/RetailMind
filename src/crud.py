@@ -8,8 +8,8 @@ from src.utils import print_stderr, sales_attribute, filter_stores, default_stor
 from langchain_core.tools import StructuredTool
 pd.set_option('display.max_columns', None)
 class CRUD:
-    def __init__(self, sales_path: str = "../test_data/train.csv", features_path: str = "../test_data/features.csv",
-                 daily_path: str = "../test_data/train_daily_1.csv", storeIDs: List[int] = default_storeIDs):
+    def __init__(self, sales_path: str = "./test_data/train.csv", features_path: str = "./test_data/features.csv",
+                 daily_path: str = "./test_data/train_daily_1.csv", storeIDs: List[int] = default_storeIDs):
         self.gen_df: pd.DataFrame = pd.DataFrame()
         self.spec_df: pd.DataFrame = pd.DataFrame()
         self.daily_df: pd.DataFrame = pd.DataFrame()
