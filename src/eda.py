@@ -94,6 +94,8 @@ class EDAFeatures:
             description="Generates a sales forecast for a specified number of future weeks."
         )
 
+        self.forecast_summary: str = ""
+
     def get_gen_df(self) -> pd.DataFrame: return self.gen_df
     def get_spec_df(self) -> pd.DataFrame: return self.spec_df
     def set_gen_df(self, gen_df: pd.DataFrame) -> None: self.gen_df = gen_df
@@ -531,6 +533,8 @@ class EDAFeatures:
         Generates a sales forecast for a specified number of future weeks.
         Runs a predictive model and returns a summary of the forecast.
         """
+        if len(self.pred_df) != 0 and len(self.forecast_summary) != 0:
+            return self.forecast_summary
         pred_df, summary = self._generate_predictions(num_weeks=num_weeks)
         self.pred_df = pred_df[['Date', 'Store', 'Dept', 'Weekly_Sales']].copy()
         store_is_numeric = pd.to_numeric(self.pred_df['Store'], errors='coerce').notna()

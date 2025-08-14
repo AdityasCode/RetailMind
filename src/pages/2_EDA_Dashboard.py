@@ -46,7 +46,7 @@ def display_chart_and_summary(summary_text, default_chart_path=None):
         except Exception as e:
             st.error(f"Error loading chart: {str(e)}")
 
-tab1, tab2, tab3 = st.tabs(["Sales Overview", "Performance Analysis", "External Factors"])
+tab1, tab2, tab3, tab4 = st.tabs(["Sales Overview", "Performance Analysis", "External Factors", "Forecasted Sales"])
 
 with tab1:
     st.header("Sales Trends & Patterns")
@@ -78,34 +78,6 @@ with tab1:
             st.text("Store IDs: " + f"{gen_df['Store'].unique()}")
         except Exception as e:
             st.error(f"Error calculating metrics: {str(e)}")
-
-    col3, col4 = st.columns([2, 1])
-
-    with col3:
-        st.subheader("Forecasted Sales")
-        try:
-            with st.spinner("Generating forecasted sales..."):
-                sales_summary = eda_analyzer.forecast_weekly_sales()
-            display_chart_and_summary(sales_summary, "./charts/forecasted.png")
-        except Exception as e:
-            st.error(f"Error generating sales trend: {str(e)}")
-
-    if len(eda_analyzer.pred_df) != 0:
-        with col4:
-            st.subheader("Key Metrics")
-            try:
-                gen_df = eda_analyzer.pred_df
-                total_sales = gen_df['Weekly_Sales'].sum()
-                avg_weekly_sales = gen_df['Weekly_Sales'].mean()
-                total_weeks = len(gen_df['Date'].unique())
-                stores_count = len(gen_df['Store'].unique())
-
-                st.metric("Total Sales", f"${total_sales:,.0f}")
-                st.metric("Avg Weekly Sales", f"${avg_weekly_sales:,.0f}")
-                st.metric("Analysis Period", f"{total_weeks} weeks")
-                st.metric("Stores Analyzed", stores_count)
-            except Exception as e:
-                st.error(f"Error calculating metrics: {str(e)}")
 
     st.subheader("Holiday Impact Analysis")
     try:
@@ -188,6 +160,35 @@ with tab3:
 
     except Exception as e:
         st.error(f"Error analyzing economic factors: {str(e)}")
+
+with tab4:
+    col3, col4 = st.columns([2, 1])
+
+    with col3:
+        st.subheader("Forecasted Sales")
+        try:
+            with st.spinner("Generating forecasted sales..."):
+                sales_summary = eda_analyzer.forecast_weekly_sales()
+            display_chart_and_summary(sales_summary, "./charts/forecasted.png")
+        except Exception as e:
+            st.error(f"Error generating sales trend: {str(e)}")
+
+    if len(eda_analyzer.pred_df) != 0:
+        with col4:
+            st.subheader("Key Metrics")
+            try:
+                gen_df = eda_analyzer.pred_df
+                total_sales = gen_df['Weekly_Sales'].sum()
+                avg_weekly_sales = gen_df['Weekly_Sales'].mean()
+                total_weeks = len(gen_df['Date'].unique())
+                stores_count = len(gen_df['Store'].unique())
+
+                st.metric("Total Sales", f"${total_sales:,.0f}")
+                st.metric("Avg Weekly Sales", f"${avg_weekly_sales:,.0f}")
+                st.metric("Analysis Period", f"{total_weeks} weeks")
+                st.metric("Stores Analyzed", stores_count)
+            except Exception as e:
+                st.error(f"Error calculating metrics: {str(e)}")
 
 st.markdown("---")
 st.header("Executive Summary")
