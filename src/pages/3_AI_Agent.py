@@ -1,24 +1,50 @@
 import streamlit as st
 import os
 import re
+from PIL import Image
+from src.utils import display_chart_and_summary
 
+# --- Page Configuration ---
 st.set_page_config(page_title="AI Agent - RetailMind", layout="wide")
 
-st.title("AI Agent")
+# --- ALWAYS INITIALIZE SESSION STATE AT THE TOP ---
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# --- Main Display ---
+st.title("🤖 AI Agent")
 st.markdown("### Ask questions about your retail data in natural language")
 
-# Check if agent is loaded
+# --- Tips Section ---
+with st.expander("💡 Tips for Getting the Best Insights"):
+    tip_col1, tip_col2 = st.columns(2)
+    with tip_col1:
+        st.markdown("""
+        **Effective Questions:**
+        - Be specific about time periods ("last quarter", "December 2010").
+        - Mention stores or departments by ID.
+        - Ask for comparisons ("Compare store 5 and store 10").
+        - Request actionable insights.
+        """)
+    with tip_col2:
+        st.markdown("""
+        **Example Queries:**
+        - "Compare Q1 vs Q2 sales performance for store 2."
+        - "Which economic factors hurt sales the most last year?"
+        - "What was the impact of the *[event name]* on sales?"
+        """)
+    st.info("""
+    **AI Capabilities:** I can analyze trends, compare performance, assess economic impacts, examine holiday effects, rank departments, and provide strategic recommendations based on your data.
+    """)
+
+# --- Agent and Data Validation ---
 if 'agent' not in st.session_state or st.session_state.agent is None:
     st.warning("AI Agent not initialized. Please upload and process your data in the **Data Hub** first.")
     if st.button("Go to Data Hub"):
         st.switch_page("pages/1_Data_Hub.py")
     st.stop()
 
-# Initialize chat history
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# Display current data context
+# --- Sidebar with Data Context ---
 with st.sidebar:
     st.header("Current Data Context")
     try:
@@ -26,171 +52,106 @@ with st.sidebar:
         gen_df = crud.gen_df
 
         st.metric("Total Records", f"{len(gen_df):,}")
-        st.metric("Stores", len(crud.storeIDs))
+        st.metric("Stores Analyzed", len(crud.storeIDs))
         st.metric("Date Range", f"{gen_df['Date'].min().date()} to {gen_df['Date'].max().date()}")
         st.metric("Total Sales", f"${gen_df['Weekly_Sales'].sum():,.0f}")
 
         st.markdown("### Stores Being Analyzed")
-        st.write(f"Stores: {', '.join(map(str, crud.storeIDs))}")
+        st.write(f"IDs: {', '.join(map(str, crud.storeIDs))}")
 
         if hasattr(st.session_state, 'event_log') and st.session_state.event_log.log:
-            st.markdown("### Events Available for Analysis")
+            st.markdown("### Logged Business Events")
             for event in st.session_state.event_log.log:
                 st.write(f"• {event.description}")
-                st.caption(f"  {event.start_date.date()} to {event.end_date.date()}")
 
     except Exception as e:
         st.error(f"Error displaying context: {str(e)}")
 
-    # Sample questions
-
-    st.markdown("---")
-    st.header("Sample Questions")
-    st.markdown("""
-    **Performance Analysis:**
-    - "Which store performed best last quarter?"
-    - "Show me sales trends for store 1"
-    - "How did sales change during holidays?"
-    
-    **Strategic Insights:**
-    - "What factors affect our sales the most?"
-    - "Which departments should we focus on?"
-    - "How does unemployment impact our performance?"
-    
-    **Event Impact Analysis:**
-    - "What was the impact of the [event name] on sales?"
-    - "Analyze the effect of our marketing campaign"
-    - "How did the promotion affect store performance?"
-    
-    **Custom Analysis:**
-    - "Compare sales between stores 1 and 5"
-    - "What was our peak sales period?"
-    - "Analyze the impact of fuel price changes"
-    """)
-
+# --- Helper Function for Displaying Responses ---
 def display_response_with_images(response_text):
-    """Display response text and any embedded chart references"""
-    response_text = response_text.replace("$", "\$").replace(" 00:00:00", "")
-    st.markdown(response_text)
+    """Generalized function to display content which may include chart references."""
+    if not isinstance(response_text, str):
+        st.write(response_text)
+        return
 
-    chart_patterns = [
-        r'charts/\w+\.png',
-        r'assets/charts/\w+\.png',
-        r'\w+\.png'
-    ]
+    cleaned_text = response_text.replace("$", "\\$").replace(" 00:00:00", "")
+    st.markdown(cleaned_text)
 
-    charts_found = []
-    for pattern in chart_patterns:
-        matches = re.findall(pattern, response_text, re.IGNORECASE)
-        charts_found.extend(matches)
-
-    common_charts = [
-        "./charts/sales.png",
-        "./charts/holiday.png",
-        "./charts/top_performers.png",
-        "./charts/department.png",
-        "./charts/department_holiday.png",
-        "./charts/propensity.png",
-        "./assets/charts/sales.png",
-        "./assets/charts/holiday.png",
-        "./assets/charts/top_performers.png"
-    ]
-
-    # Display any charts that exist
-    displayed_charts = set()
-
-    for chart_path in charts_found:
-        if chart_path not in displayed_charts and os.path.exists(chart_path):
+    chart_paths = re.findall(r'charts/[^\s]+\.png', response_text, re.IGNORECASE)
+    for chart_path in set(chart_paths):
+        if os.path.exists(chart_path):
             try:
-                st.image(chart_path, caption=f"Generated Chart: {os.path.basename(chart_path)}", use_container_width=True)
-                displayed_charts.add(chart_path)
+                image = Image.open(chart_path)
+                st.image(image, use_container_width=True)
             except Exception as e:
-                st.error(f"Error displaying chart {chart_path}: {str(e)}")
+                st.error(f"Error loading chart {chart_path}: {str(e)}")
 
+# --- Main Chat Interface Logic ---
 st.subheader("Conversation")
-chat_container = st.container()
-with chat_container:
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            if message["role"] == "user":
-                st.markdown(message["content"])
-            else:
-                display_response_with_images(message["content"])
-prompt = st.chat_input("Ask me anything about your retail data...")
 
+# Display the entire chat history from session state
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        if message["content"] is not None:
+            display_chart_and_summary(message["content"])
+
+# Check if the AI is currently "thinking"
+is_ai_thinking: bool = False
+if (st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant" and st.session_state.messages[-1]["content"] is None):
+    is_ai_thinking = True
+
+# --- Recommended Questions Buttons ---
+st.markdown("---")
+st.markdown("##### Quick-Start Questions")
+
+prompt = None  # Initialize prompt to handle button clicks
+
+colA, colB, colC = st.columns(3)
+recommended_questions_1 = "Which were the top 3 performing stores last year?"
+recommended_questions_2 = "How did holiday weeks impact sales on average?"
+recommended_questions_3 = "Analyze the effect of our Summer Sale Campaign"
+
+# Disable buttons while the AI is thinking
+with colA:
+    if st.button(recommended_questions_1, use_container_width=True, disabled=is_ai_thinking):
+        prompt = recommended_questions_1
+with colB:
+    if st.button(recommended_questions_2, use_container_width=True, disabled=is_ai_thinking):
+        prompt = recommended_questions_2
+with colC:
+    if st.button(recommended_questions_3, use_container_width=True, disabled=is_ai_thinking, help="Note: Requires a relevant event to be logged."):
+        prompt = recommended_questions_3
+
+# --- Chat Input Box ---
+user_input = st.chat_input("Ask me anything about your retail data...", disabled=is_ai_thinking)
+if user_input:
+    prompt = user_input
+
+# --- Processing Logic (Robust Multi-Rerun Pattern) ---
+# 1. If a prompt was submitted, add it to history and rerun
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+    st.session_state.messages.append({"role": "assistant", "content": None})
+    st.rerun()
+
+# 2. If the last message is an assistant placeholder, generate the real response
+if is_ai_thinking:
     with st.chat_message("assistant"):
-        with st.spinner("Analyzing your data and generating insights..."):
+        with st.spinner("🧠 Thinking..."):
             try:
+                last_user_prompt = st.session_state.messages[-2]["content"]
                 agent = st.session_state.agent
-                response = agent.ask(prompt)
-                display_response_with_images(response)
-                st.session_state.messages.append({"role": "assistant", "content": response})
+                response = agent.ask(last_user_prompt)
+                st.session_state.messages[-1]["content"] = response
+                st.rerun()
 
             except Exception as e:
-                error_message = f"I encountered an error while processing your request: {str(e)}"
-                st.error(error_message)
-                st.session_state.messages.append({"role": "assistant", "content": error_message})
-                with st.expander("Technical Details"):
-                    st.code(str(e))
+                error_message = f"I encountered an error: {str(e)}"
+                st.session_state.messages[-1]["content"] = error_message
+                st.rerun()
 
-# some controls
-
-col1, col2 = st.columns([1, 1])
-
-with col1:
-    if st.button("Clear Conversation", type="secondary"):
-        st.session_state.messages = []
-        st.rerun()
-
-with col2:
-    if st.button("View Dashboard", type="primary"):
-        st.switch_page("pages/2_EDA_Dashboard.py")
-
-# some tips
-
+# --- Controls ---
 st.markdown("---")
-st.subheader("Tips for Better Analysis")
-
-tip_col1, tip_col2 = st.columns(2)
-
-with tip_col1:
-    st.markdown("""
-    **Effective Questions:**
-    - Be specific about time periods
-    - Mention specific stores or departments
-    - Ask for comparisons and trends
-    - Request actionable insights
-    
-    **Analysis Types:**
-    - Performance comparisons
-    - Seasonal trend analysis  
-    - Economic factor correlations
-    - Holiday impact assessment
-    - Business event impact analysis
-    """)
-
-with tip_col2:
-    st.markdown("""
-    **Example Queries:**
-    - "Compare Q1 vs Q2 sales performance"
-    - "Which economic factors hurt sales most?"
-    - "Show me the best performing departments during holidays"
-    - "How do stores 1-5 compare in terms of seasonal patterns?"
-    
-    **Event Analysis:**
-    - "What was the impact of [event name] on sales?"
-    - "Analyze our marketing campaign effectiveness"
-    - "How did the promotion affect different stores?"
-    - "Compare sales before and during the event"
-    """)
-
-st.markdown("---")
-st.info("""
-**AI Capabilities:** I can analyze sales trends, compare store performance, assess economic impacts, 
-examine holiday effects, rank departments, analyze business event impacts, and provide strategic business 
-recommendations based on your data. Ask me anything about your retail performance!
-""")
+if st.button("Clear Conversation", type="secondary"):
+    st.session_state.messages = []
+    st.rerun()

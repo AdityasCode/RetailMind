@@ -8,8 +8,8 @@ from src.utils import print_stderr, sales_attribute, filter_stores, default_stor
 from langchain_core.tools import StructuredTool
 pd.set_option('display.max_columns', None)
 class CRUD:
-    def __init__(self, sales_path: str = "./test_data/train.csv", features_path: str = "./test_data/features.csv",
-                 daily_path: str = "./test_data/train_daily_1.csv", storeIDs: List[int] = default_storeIDs):
+    def __init__(self, sales_path: str, features_path: str,
+                 daily_path: str = None, storeIDs: List[int] = default_storeIDs):
         self.gen_df: pd.DataFrame = pd.DataFrame()
         self.spec_df: pd.DataFrame = pd.DataFrame()
         self.daily_df: pd.DataFrame = pd.DataFrame()
@@ -42,7 +42,6 @@ class CRUD:
     def add_external_factors(self, csv_path: str) -> None:
         """
         reads entire data and merges it with a given dataframe. only matching dates are included.
-        :param sales_df: sales dataframe
         :return None
         """
         print_stderr("adding external factors")
@@ -55,17 +54,15 @@ class CRUD:
         final_df = merged_df[['Store', 'Date', 'Weekly_Sales', 'Temperature', 'Fuel_Price', 'CPI', 'Unemployment']]
         self.spec_df = filter_stores(final_df, self.storeIDs)
 
-    def add_sales_data(self, train_csv_path: str, chunksize: int = 50000) -> None:
+    def add_sales_data(self, train_csv_path: str, chunk_size: int = 50000) -> None:
         """
         read data from csv in chunks, add to the df
         :param train_csv_path: path of csv file w data
-        :param features_csv_path: path of csv file w features
-        :param chunksize: size of chunk to read from csv
-        :param storeID: id of stores to include
+        :param chunk_size: size of chunk to read from csv
         :return: None
         """
         print_stderr("adding sales data")
-        reader = pd.read_csv(train_csv_path, chunksize=chunksize, iterator=True, encoding='unicode_escape')
+        reader = pd.read_csv(train_csv_path, chunksize=chunk_size, iterator=True, encoding='unicode_escape')
         chunks = []
         weekly_sales_agg: Dict[int, List[float]] = {}
         for i in range(1, 46): weekly_sales_agg[i] = []
@@ -214,7 +211,7 @@ class CRUD:
                 ]
         return int(filtered_df[colUse].sum())
 
-    def add_daily_data(self, path: str, chunksize: int = 50000) -> pd.DataFrame:
+    def add_daily_data(self, path: str, chunksize: int = 50000) -> None:
         print_stderr("adding daily sales data")
         print_stderr(f"cwd here: {os.getcwd()}")
         reader = pd.read_csv(path, chunksize=chunksize, iterator=True, encoding='unicode_escape')

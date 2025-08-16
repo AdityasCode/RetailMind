@@ -66,6 +66,7 @@ CONVERSATION GUIDELINES:
 - Build upon earlier analysis in the conversation
 - Provide consistent, coherent responses across the session
 - Remember user preferences and focus areas mentioned earlier
+- Provide the relevant or mentioned graphs, if any, but do not mention anything along the lines of "Chart Saved To: path.png" in your answer.
         """
         prompt.messages[0].prompt.template += enhanced_instructions
 

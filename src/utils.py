@@ -1,9 +1,13 @@
 import os
+import re
 from datetime import timedelta
 from sys import stderr
 from typing import Tuple, List
 
 from pathlib import Path
+
+import streamlit as st
+from PIL import Image
 from pypdf import PdfReader
 import pandas as pd
 
@@ -137,3 +141,35 @@ def clear_folder_contents(folder_path: Path):
         print_stderr(f"folder contents cleared: {folder_path}")
     except Exception as e:
         print(f"error clearing files in '{folder_path}': {e}")
+
+
+def display_chart_and_summary(summary_text, default_chart_path=None):
+    image_path = extract_image_path(summary_text) or default_chart_path
+    st.markdown(re.sub(r'\s*Chart saved to:\s*.*\.png\s*$', '', (summary_text.replace("$", "\$").replace(" 00:00:00", ""))))
+    if image_path and os.path.exists(image_path):
+        try:
+            image = Image.open(image_path)
+            st.image(image, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error loading chart: {str(e)}")
+    elif default_chart_path and os.path.exists(default_chart_path):
+        try:
+            image = Image.open(default_chart_path)
+            st.image(image, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error loading chart: {str(e)}")
+
+
+def extract_image_path(summary_text):
+    chart_patterns = [
+        r'./charts/(\w+)\.png',
+        r'./assets/charts/(\w+)\.png',
+        r'charts/(\w+)\.png',
+        r'assets/charts/(\w+)\.png'
+    ]
+
+    for pattern in chart_patterns:
+        match = re.search(pattern, summary_text)
+        if match:
+            return match.group(0)
+    return None

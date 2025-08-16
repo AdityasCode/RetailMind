@@ -10,266 +10,185 @@ from src.eda import EDAFeatures
 from src.agent import RetailAgent
 from src.utils import parse_pdf, default_storeIDs
 
+# --- PAGE CONFIGURATION ---
+
 st.set_page_config(page_title="Data Hub - RetailMind", layout="wide")
 
-st.title(f"Data Hub")
-st.markdown(f"### Upload and validate your retail datasets")
+# --- HEADER ---
 
-# Check if data is already loaded
+st.title("🔗 Your Data Command Center")
+st.markdown("### Securely connect your business data to unlock powerful, AI-driven insights.")
+
+# --- DATA LOADED STATE ---
+
 if hasattr(st.session_state, 'agent') and st.session_state.agent is not None:
-    st.success("Data is already loaded and processed!")
+    st.success("Excellent! Your data is connected and the system is ready for analysis.")
 
-    # Show current data status
-    st.markdown("### Current Data Status")
-
+    st.markdown("#### Current Data Status")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("General Data Shape", f"{st.session_state.crud.gen_df.shape[0]} rows")
+        st.metric("Total Sales Records", f"{st.session_state.crud.gen_df.shape[0]:,} rows")
     with col2:
-        st.metric("Spec Data Shape", f"{st.session_state.crud.spec_df.shape[0]} rows")
+        st.metric("Economic Data Points", f"{st.session_state.crud.spec_df.shape[0]:,} rows")
     with col3:
-        st.metric("Store Count", len(st.session_state.crud.storeIDs))
+        st.metric("Number of Stores", len(st.session_state.crud.storeIDs))
 
-    # Preview current data
-    st.markdown("### Data Preview")
+    st.markdown("#### Data Preview")
     st.dataframe(st.session_state.crud.gen_df.head(), use_container_width=True)
 
-    # Clear data option
-    if st.button("Clear Data & Restart", type="secondary"):
-        # Clear all session state
+    if st.button("Disconnect Data and Start Over", type="secondary"):
         for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.rerun()
 
     st.stop()
 
-# File upload section
-st.markdown("## File Upload")
-st.markdown("Upload your retail datasets below. All files should be in CSV format.")
+# --- FILE UPLOAD SECTION ---
 
-# Create file uploaders
+st.markdown("## Step 1: Upload Your Core Business Data")
+st.info("Upload your sales and store information below. All files must be in CSV format.", icon="📁")
+
 col1, col2 = st.columns(2)
-
 with col1:
     train_file = st.file_uploader(
-        "Sales Training Data (Required)",
+        "Your Sales History (Required)",
         type=['csv'],
-        help="Main sales dataset containing Store, Date, Weekly_Sales, and IsHoliday columns",
+        help="This is the heart of your data. It should contain columns for Store, Department, Date, Weekly_Sales, and IsHoliday.",
         key="train_upload"
     )
 
     features_file = st.file_uploader(
-        "External Features Data (Required)",
+        "Store & Economic Data (Required)",
         type=['csv'],
-        help="Features dataset with Store, Date, Temperature, Fuel_Price, CPI, Unemployment columns",
+        help="This file adds context. It needs Store, Date, and data like local Temperature, Fuel_Price, and Unemployment rates.",
         key="features_upload"
     )
 
 with col2:
     daily_file = st.file_uploader(
-        "Daily Sales Data (Optional)",
+        "Daily Sales Figures (Optional)",
         type=['csv'],
-        help="Daily sales data for more granular analysis",
+        help="For a more granular, day-by-day analysis, provide your daily sales numbers here.",
         key="daily_upload"
     )
-
-    # Store selection
     store_ids_input = st.text_input(
-        "Store IDs (Optional)",
-        placeholder="e.g., 1,2,3,4,5 or leave empty for all stores",
-        help="Comma-separated list of store IDs to analyze. Leave empty to include all stores.",
+        "Focus on Specific Stores (Optional)",
+        placeholder="e.g., 1, 5, 12 or leave empty for all",
+        help="Enter a comma-separated list of store numbers to analyze only a subset of your locations.",
     )
 
-# Event upload section
-st.markdown("## Event Documentation Upload")
-st.markdown("Upload PDF documents related to business events (campaigns, promotions, etc.) for impact analysis.")
+# --- EVENT UPLOAD SECTION ---
+
+st.markdown("---")
+st.markdown("## Step 2: Tell Us About Business Events (Optional but Recommended!)")
+st.info("Did you run a big promotion? Launch a new product line? Upload the details here, and RetailMind can connect those events directly to your sales performance.", icon="💡")
 
 event_col1, event_col2 = st.columns(2)
-
 with event_col1:
     event_name = st.text_input(
         "Event Name",
-        placeholder="e.g., Summer Sale Campaign",
-        help="Descriptive name for the business event"
+        placeholder="e.g., Summer Sizzler Sale",
+        help="Give your event a clear, memorable name."
     )
-
     event_start_date = st.date_input(
         "Event Start Date",
-        help="When the event began",
+        help="The day the event or campaign kicked off.",
         min_value=datetime.datetime(1970, 1, 1)
     )
 
 with event_col2:
     event_end_date = st.date_input(
         "Event End Date",
-        help="When the event ended",
+        help="The day the event concluded.",
         min_value=datetime.datetime(1970, 1, 1)
     )
-
     event_pdf = st.file_uploader(
-        "Event Documentation (PDF)",
+        "Upload Event Details (PDF)",
         type=['pdf'],
-        help="PDF document describing the event details",
+        help="Upload a PDF with details about the event, like a marketing plan or press release.",
         key="event_pdf_upload"
     )
 
-# Display current events if any exist
-if hasattr(st.session_state, 'event_log') and st.session_state.event_log.log:
-    st.markdown("### Current Events in Log")
-    for i, event in enumerate(st.session_state.event_log.log):
-        with st.expander(f"{event.description} ({event.start_date.date()} to {event.end_date.date()})"):
-            st.write(f"**Text Preview:** {event.text[:200]}...")
+# --- DISPLAY CURRENT EVENTS ---
 
-# Add event button
+if hasattr(st.session_state, 'event_log') and st.session_state.event_log.log:
+    st.markdown("#### Logged Business Events")
+    for i, event in enumerate(st.session_state.event_log.log):
+        with st.expander(f"**{event.description}** ({event.start_date.date()} to {event.end_date.date()})"):
+            st.write(f"**Text Preview:** *'{event.text[:200]}...'*")
+
+# --- ADD EVENT BUTTON ---
+
 if st.button("Add Event to Log", disabled=not (event_name and event_pdf)):
     try:
-        with st.spinner("Processing event PDF and adding to log..."):
-            # save PDF temporarily
+        with st.spinner("Analyzing your event document..."):
             temp_dir = tempfile.mkdtemp()
             pdf_path = os.path.join(temp_dir, "event_document.pdf")
-
             with open(pdf_path, "wb") as f:
                 f.write(event_pdf.getbuffer())
-
-            # parse PDF text
             event_text = parse_pdf(pdf_path)
-
-            # create Event object
-            new_event = Event(
-                name=event_name,
-                start_date=str(event_start_date),
-                end_date=str(event_end_date),
-                text=event_text
-            )
-
-            # add to event log create if doesn't exist
+            new_event = Event(name=event_name, start_date=str(event_start_date), end_date=str(event_end_date), text=event_text)
             if not hasattr(st.session_state, 'event_log'):
                 st.session_state.event_log = EventLog()
-
             st.session_state.event_log.add_event_from_event(new_event)
-
-            # save the updated log
             st.session_state.event_log.save_log("./events_log.json")
-
-        st.success(f"Event '{event_name}' successfully added to log!")
+        st.success(f"Event '{event_name}' has been successfully logged!")
         st.rerun()
-
     except Exception as e:
-        st.error(f"Error processing event: {str(e)}")
-        with st.expander("Technical Details"):
-            st.code(str(e))
+        st.error(f"An error occurred while adding the event: {str(e)}")
 
-# process store IDs
+# --- PROCESS BUTTON ---
 
-store_ids = None
-if store_ids_input.strip():
-    try:
-        store_ids = [int(x.strip()) for x in store_ids_input.split(',')]
-        st.info(f"Will analyze stores: {store_ids}")
-    except ValueError:
-        st.error("Invalid store IDs format. Please use comma-separated integers.")
-else:
-    store_ids = default_storeIDs
-
+st.markdown("---")
 required_files = train_file is not None and features_file is not None
 if not required_files:
-    st.warning("Please upload both required files (Sales Training Data and External Features Data) to proceed.")
-
-# process button
+    st.warning("Please upload both required files (Sales History and Store & Economic Data) to proceed.")
 
 process_button = st.button(
-    "Process and Validate Data",
+    "Connect and Analyze My Data",
     disabled=not required_files,
     type="primary"
 )
 
 if process_button and required_files:
     try:
-        with st.spinner("Processing your data... This may take a few moments."):
-
-            # save uploaded files temporarily
-
+        store_ids = [int(x.strip()) for x in store_ids_input.split(',')] if store_ids_input.strip() else default_storeIDs
+        with st.spinner("Building your analytics dashboard... This may take a few moments."):
             temp_dir = tempfile.mkdtemp()
             train_path = os.path.join(temp_dir, "train.csv")
             features_path = os.path.join(temp_dir, "features.csv")
             daily_path = None
-
-            with open(train_path, "wb") as f:
-                f.write(train_file.getbuffer())
-
-            with open(features_path, "wb") as f:
-                f.write(features_file.getbuffer())
-
+            with open(train_path, "wb") as f: f.write(train_file.getbuffer())
+            with open(features_path, "wb") as f: f.write(features_file.getbuffer())
             if daily_file is not None:
                 daily_path = os.path.join(temp_dir, "daily.csv")
-                with open(daily_path, "wb") as f:
-                    f.write(daily_file.getbuffer())
+                with open(daily_path, "wb") as f: f.write(daily_file.getbuffer())
             os.makedirs("assets/charts", exist_ok=True)
-
-            # initialize instances for all classes
-
-            if store_ids:
-                crud = CRUD(
-                    sales_path=train_path,
-                    features_path=features_path,
-                    daily_path=daily_path if daily_path else "./test_data/train_daily_1.csv",
-                    storeIDs=store_ids
-                )
-            else:
-                crud = CRUD(
-                    sales_path=train_path,
-                    features_path=features_path,
-                    daily_path=daily_path if daily_path else "./test_data/train_daily_1.csv"
-                )
-            if hasattr(st.session_state, 'event_log'):
-                event_log = st.session_state.event_log
-            else:
-                event_log = EventLog()
-            # if event_pdf and event_name:
-
-
-
-            eda_analyzer = EDAFeatures(
-                gen_df=crud.gen_df,
-                spec_df=crud.spec_df,
-                event_log=event_log,
-                daily_df=crud.daily_df,
-                storeIDs=crud.storeIDs,
-                predictor=TimeSeriesPredictor.load("models/autogluon-m4-hourly")
-            )
+            crud = CRUD(sales_path=train_path, features_path=features_path, daily_path=daily_path if daily_path else None, storeIDs=store_ids)
+            event_log = st.session_state.event_log if hasattr(st.session_state, 'event_log') else EventLog()
+            eda_analyzer = EDAFeatures(gen_df=crud.gen_df, spec_df=crud.spec_df, event_log=event_log, daily_df=crud.daily_df, storeIDs=crud.storeIDs, predictor=TimeSeriesPredictor.load("models/autogluon-m4-hourly"))
             agent = RetailAgent(crud_obj=crud, eda_obj=eda_analyzer)
+            st.session_state.crud, st.session_state.eda_analyzer, st.session_state.agent, st.session_state.event_log = crud, eda_analyzer, agent, event_log
 
-            st.session_state.crud = crud
-            st.session_state.eda_analyzer = eda_analyzer
-            st.session_state.agent = agent
-            st.session_state.event_log = event_log
+        st.success("Brilliant! Your analysis is ready.")
 
-        st.success("Data processed successfully!")
-
-
-        st.markdown("### Data Summary")
-
+        st.markdown("#### Initial Data Summary")
         col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Total Records", f"{len(crud.gen_df):,}")
-        with col2:
-            st.metric("Stores Analyzed", len(crud.storeIDs))
-        with col3:
-            st.metric("Date Range", f"{len(crud.gen_df['Date'].unique())} periods")
-        with col4:
-            st.metric("Total Sales", f"${crud.gen_df['Weekly_Sales'].sum():,.0f}")
+        with col1: st.metric("Total Sales Records", f"{len(crud.gen_df):,}")
+        with col2: st.metric("Stores Analyzed", len(crud.storeIDs))
+        with col3: st.metric("Time Periods Covered", f"{len(crud.gen_df['Date'].unique())}")
+        with col4: st.metric("Total Sales Volume", f"${crud.gen_df['Weekly_Sales'].sum():,.0f}")
 
-        st.markdown("### Data Preview")
         st.dataframe(crud.gen_df.head(10), use_container_width=True)
-
-        st.info("Ready to explore! Navigate to the **EDA Dashboard** to view automated insights, or try the **AI Agent** for custom analysis and event impact queries.")
+        st.balloons()
+        st.info("Navigate to the **EDA Dashboard** to see your automated insights, or chat with the **AI Agent** for custom analysis.")
 
     except Exception as e:
-        st.error(f"Error processing data: {str(e)}")
-        st.error("Please check your file formats and try again. Ensure your CSV files have the required columns.")
+        st.error(f"Error Processing Data: {str(e)}")
+        st.warning("Please check that your file formats match the requirements below. Ensure column names are correct.")
+        with st.expander("Show Technical Error Details"): st.code(str(e))
 
-        with st.expander("Technical Details"):
-            st.code(str(e))
+# --- DATA FORMAT REQUIREMENTS ---
 
 st.markdown("---")
 st.markdown("### Data Format Requirements")
