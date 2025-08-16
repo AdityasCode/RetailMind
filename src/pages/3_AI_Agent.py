@@ -2,7 +2,42 @@ import streamlit as st
 import os
 import re
 from PIL import Image
-from src.utils import display_chart_and_summary
+
+from src.utils import print_stderr
+
+
+def display_chart_and_summary(summary_text, default_chart_path=None):
+    image_path = extract_image_path(summary_text) or default_chart_path
+    st.markdown(re.sub(r'\s*Chart saved to:\s*.*\.png\s*$', '', (summary_text.replace("$", "\$").replace(" 00:00:00", ""))))
+    if image_path and os.path.exists(image_path):
+        print_stderr(f"image: {image_path} already exists")
+        try:
+            image = Image.open(image_path)
+            st.image(image, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error loading chart: {str(e)}")
+    elif default_chart_path and os.path.exists(default_chart_path):
+        try:
+            image = Image.open(default_chart_path)
+            st.image(image, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error loading chart: {str(e)}")
+
+
+def extract_image_path(summary_text):
+    chart_patterns = [
+        r'./charts/(\w+)\.png',
+        r'./assets/charts/(\w+)\.png',
+        r'charts/(\w+)\.png',
+        r'assets/charts/(\w+)\.png',
+        r'(\w+)\.png'
+    ]
+
+    for pattern in chart_patterns:
+        match = re.search(pattern, summary_text)
+        if match:
+            return match.group(0)
+    return None
 
 # --- Page Configuration ---
 st.set_page_config(page_title="AI Agent - RetailMind", layout="wide")

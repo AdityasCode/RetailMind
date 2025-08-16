@@ -458,7 +458,7 @@ class EDAFeatures:
             ]
 
         if event_period_df.empty:
-            return f"Found event '{event.description}', but no sales data exists for its date range."
+            return f"Found event '{event.description}', but no sales data exists for its date range: {event.start_date}-{event.end_date}."
 
         avg_event_sales = event_period_df['Weekly_Sales'].mean()
         avg_baseline_sales = baseline_df['Weekly_Sales'].mean() if not baseline_df.empty else 0

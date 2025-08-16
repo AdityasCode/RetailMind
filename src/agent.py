@@ -66,8 +66,8 @@ CONVERSATION GUIDELINES:
 - Build upon earlier analysis in the conversation
 - Provide consistent, coherent responses across the session
 - Remember user preferences and focus areas mentioned earlier
-- Provide the relevant or mentioned graphs, if any, but do not mention anything along the lines of "Chart Saved To: path.png" in your answer.
-        """
+- When a user's query includes keywords like 'impact', 'effect', 'analyze', or 'change' related to may be an event (e.g., 'inventory changes', 'marketing campaign'), your FIRST action should be to proactively use the event_impact_analyzer tool with the potential event name. If the tool returns and says the event was not found, then inform the user the specific event isn't in the data and ask for clarification or suggest alternative analyses.
+- When you are unsure about the date range or any specifics of a user's query, but you are able to associate it with a function, invoke that function anyway with a general parameter or a broad range, retrying at most 2 times until you get a successful response. Then, and only then, if after 3 tries you cannot formulate a response, ask the user to clarify their query."""
         prompt.messages[0].prompt.template += enhanced_instructions
 
         agent = create_tool_calling_agent(self.llm, self.tools, prompt)
